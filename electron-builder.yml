@@ -46,17 +46,16 @@ mac:
   extendInfo:
     # Pick the discrete GPU on dual-GPU MacBook Pros instead of the integrated one.
     NSSupportsAutomaticGraphicsSwitching: true
+  # No arch: keys on the targets, on purpose. A target-level arch list overrides
+  # the command line, so `--arm64` would still emit both architectures. Arches
+  # come from the CLI (npm run dist:mac / dist:mac:arm64 / dist:mac:x64) or from
+  # the CI matrix instead.
+  #
   # Two single-arch builds rather than one universal binary: universal roughly
   # doubles the download for no benefit outside a local single-file copy.
   target:
-    - target: dmg
-      arch:
-        - arm64
-        - x64
-    - target: zip
-      arch:
-        - arm64
-        - x64
+    - dmg
+    - zip
   artifactName: ${productName}-${version}-${arch}.${ext}
   # electron-builder 26 has no object form for `notarize`: it is a boolean that
   # *disables* notarization when set to false. Left unset, notarization runs

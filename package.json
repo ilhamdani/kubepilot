@@ -37,7 +37,7 @@
     "icon:icns": "node tools/make-icns.mjs",
     "package": "npm run build && electron-builder --win --dir",
     "dist": "npm run build && electron-builder --win",
-    "dist:mac": "npm run build && electron-builder --mac",
+    "dist:mac": "npm run build && electron-builder --mac --arm64 --x64",
     "dist:mac:arm64": "npm run build && electron-builder --mac --arm64",
     "dist:mac:x64": "npm run build && electron-builder --mac --x64",
     "verify:mac": "node tools/verify-mac-config.mjs",

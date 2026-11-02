@@ -10,6 +10,7 @@
 // architecture.
 import fs from 'node:fs';
 import path from 'node:path';
+import zlib from 'node:zlib';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 
@@ -66,7 +67,9 @@ function xmlProblem(text) {
 
 // ------------------------------------------------------------------ ICNS
 
-const ICNS_EXPECTED = {
+// Every ICNS type maps to one exact pixel size. A PNG element whose IHDR says
+// something else is either a mistake or a silently upscaled entry.
+const ICNS_SIZES = {
   icp4: 16,
   icp5: 32,
   icp6: 64,
@@ -74,7 +77,14 @@ const ICNS_EXPECTED = {
   ic08: 256,
   ic09: 512,
   ic10: 1024,
+  ic11: 32, // 16pt @2x
+  ic12: 64, // 32pt @2x
+  ic13: 256, // 128pt @2x
+  ic14: 512, // 256pt @2x
 };
+
+// The seven Finder actually needs; the retina four are a bonus.
+const ICNS_REQUIRED = ['icp4', 'icp5', 'icp6', 'ic07', 'ic08', 'ic09', 'ic10'];
 
 function readIcns(rel) {
   const buf = fs.readFileSync(path.join(root, rel));
@@ -94,12 +104,63 @@ function readIcns(rel) {
     elements.set(type, {
       length: len,
       isPng,
+      payload,
       width: isPng ? payload.readUInt32BE(16) : 0,
       height: isPng ? payload.readUInt32BE(20) : 0,
     });
     off += len;
   }
   return elements;
+}
+
+// IHDR only - enough to prove the source is big enough and square.
+function pngSize(file) {
+  const buf = fs.readFileSync(path.join(root, file));
+  assert(buf.toString('ascii', 1, 4) === 'PNG', `${file} is not a PNG`);
+  return { width: buf.readUInt32BE(16), height: buf.readUInt32BE(20) };
+}
+
+// Full decode of an 8-bit RGBA, non-interlaced PNG - what encodePng emits.
+function pngPixels(payload, label) {
+  const width = payload.readUInt32BE(16);
+  const height = payload.readUInt32BE(20);
+  assert(payload[24] === 8 && payload[25] === 6, `${label} is not 8-bit RGBA`);
+
+  const idat = [];
+  for (let off = 8; off < payload.length; ) {
+    const len = payload.readUInt32BE(off);
+    const type = payload.toString('ascii', off + 4, off + 8);
+    if (type === 'IDAT') idat.push(payload.subarray(off + 8, off + 8 + len));
+    off += 12 + len;
+  }
+  const raw = zlib.inflateSync(Buffer.concat(idat));
+  const stride = width * 4;
+  const out = Buffer.alloc(stride * height);
+
+  for (let y = 0; y < height; y++) {
+    const filter = raw[y * (stride + 1)];
+    const line = raw.subarray(y * (stride + 1) + 1, (y + 1) * (stride + 1));
+    const cur = out.subarray(y * stride, (y + 1) * stride);
+    const prev = y > 0 ? out.subarray((y - 1) * stride, y * stride) : null;
+    for (let x = 0; x < stride; x++) {
+      const a = x >= 4 ? cur[x - 4] : 0;
+      const b = prev ? prev[x] : 0;
+      const c = prev && x >= 4 ? prev[x - 4] : 0;
+      let v = line[x];
+      if (filter === 1) v += a;
+      else if (filter === 2) v += b;
+      else if (filter === 3) v += (a + b) >> 1;
+      else if (filter === 4) {
+        const p = a + b - c;
+        const pa = Math.abs(p - a);
+        const pb = Math.abs(p - b);
+        const pc = Math.abs(p - c);
+        v += pa <= pb && pa <= pc ? a : pb <= pc ? b : c;
+      }
+      cur[x] = v & 0xff;
+    }
+  }
+  return { width, height, data: out };
 }
 
 // ------------------------------------------------------------------ checks
@@ -124,20 +185,22 @@ check('mac.category is developer-tools', () => {
   return mac().category;
 });
 
-check('mac targets: dmg + zip for arm64 and x64', () => {
+check('mac targets are dmg + zip with no arch lists', () => {
   const targets = Array.isArray(mac().target) ? mac().target : [mac().target];
-  const map = new Map();
+  const names = [];
   for (const entry of targets) {
-    assert(entry && typeof entry === 'object', 'target entries must carry arch lists');
-    map.set(entry.target, new Set(entry.arch || []));
+    // A target-level arch list overrides the CLI, which would make --arm64 and
+    // --x64 both emit every architecture.
+    assert(
+      typeof entry === 'string',
+      `target entry ${JSON.stringify(entry)} carries an arch list; arches must come from the CLI`,
+    );
+    names.push(entry);
   }
   for (const kind of ['dmg', 'zip']) {
-    assert(map.has(kind), `missing ${kind} target`);
-    const arches = map.get(kind);
-    assert(arches.has('arm64'), `${kind} is missing arm64`);
-    assert(arches.has('x64'), `${kind} is missing x64`);
+    assert(names.includes(kind), `missing ${kind} target`);
   }
-  return 'dmg[arm64,x64], zip[arm64,x64]';
+  return names.join(', ');
 });
 
 check('mac artifactName is arch-specific', () => {
@@ -205,26 +268,68 @@ check('build/icon.icns is a valid container', () => {
   return `${elements.size} elements, ${fs.statSync(path.join(root, 'build/icon.icns')).size} bytes`;
 });
 
-check('icon.icns embeds the required sizes', () => {
+check('icon.icns embeds every size its types imply', () => {
   const elements = readIcns('build/icon.icns');
-  const missing = [];
-  for (const [type, size] of Object.entries(ICNS_EXPECTED)) {
-    const entry = elements.get(type);
-    if (!entry) missing.push(`${type} (${size}px) absent`);
-    else if (!entry.isPng) missing.push(`${type} is not PNG data`);
-    else if (entry.width !== size || entry.height !== size) {
-      missing.push(`${type} is ${entry.width}x${entry.height}, expected ${size}x${size}`);
+  const problems = [];
+  for (const type of ICNS_REQUIRED) {
+    if (!elements.has(type)) problems.push(`${type} (${ICNS_SIZES[type]}px) absent`);
+  }
+  for (const [type, entry] of elements) {
+    const expected = ICNS_SIZES[type];
+    if (!expected) {
+      problems.push(`${type} is not a known ICNS type`);
+    } else if (!entry.isPng) {
+      problems.push(`${type} is not PNG data`);
+    } else if (entry.width !== expected || entry.height !== expected) {
+      problems.push(`${type} is ${entry.width}x${entry.height}, expected ${expected}x${expected}`);
     }
   }
-  assert(missing.length === 0, missing.join('; '));
-  const retina = ['ic11', 'ic12', 'ic13', 'ic14'].filter((t) => elements.has(t));
-  return `16/32/64/128/256/512/1024 present, retina: ${retina.join(',') || 'none'}`;
+  assert(problems.length === 0, problems.join('; '));
+  return [...elements.keys()].join(', ');
 });
 
-check('build/icon.png still exists for Windows', () => {
+check('icon.icns has no opaque black halo', () => {
+  // Catmull-Rom undershoots alpha below zero on a hard edge; without a lower
+  // clamp the value wraps and paints a ring of opaque black pixels that the
+  // source never had.
+  const elements = readIcns('build/icon.icns');
+  const offenders = [];
+  for (const type of ['ic08', 'ic09', 'ic10']) {
+    const entry = elements.get(type);
+    if (!entry) continue;
+    const { data } = pngPixels(entry.payload, type);
+    let count = 0;
+    for (let i = 0; i < data.length; i += 4) {
+      if (data[i + 3] > 200 && data[i] < 8 && data[i + 1] < 8 && data[i + 2] < 8) count++;
+    }
+    if (count > 0) offenders.push(`${type}: ${count} opaque black pixels`);
+  }
+  assert(offenders.length === 0, offenders.join('; '));
+  return 'ic08/ic09/ic10 clean';
+});
+
+check('icon.icns keeps the HIG margin', () => {
+  // macOS tiles cover 824 of 1024 with a transparent surround; a full-bleed
+  // icon sits visibly larger than its neighbours in the Dock.
+  const entry = readIcns('build/icon.icns').get('ic10');
+  assert(entry, 'no ic10 element');
+  const { width, data } = pngPixels(entry.payload, 'ic10');
+  const cornerAlpha = data[3];
+  const edgeMidAlpha = data[(width * Math.floor(width / 2) + 0) * 4 + 3];
+  assert(cornerAlpha === 0, `corner pixel is not transparent (alpha ${cornerAlpha})`);
+  assert(edgeMidAlpha === 0, `left edge is not transparent (alpha ${edgeMidAlpha})`);
+  return 'transparent border on all edges';
+});
+
+check('build/icon.png is a 1024px square source', () => {
   assert(exists('build/icon.png'), 'build/icon.png is missing');
-  const size = fs.statSync(path.join(root, 'build/icon.png')).size;
-  return `${size} bytes`;
+  const { width, height } = pngSize('build/icon.png');
+  assert(width === height, `build/icon.png is ${width}x${height}, not square`);
+  assert(
+    width >= 1024,
+    `build/icon.png is ${width}px; at least 1024 is required or the icns 512/1024 entries are upscales`,
+  );
+  return `${width}x${height}`;
 });
 
 check('win packaging untouched', () => {
@@ -243,17 +348,27 @@ check('package.json has the macOS scripts', () => {
   const pkg = JSON.parse(read('package.json'));
   const scripts = pkg.scripts || {};
   const expected = {
-    'dist:mac': 'electron-builder --mac',
-    'dist:mac:arm64': 'electron-builder --mac --arm64',
-    'dist:mac:x64': 'electron-builder --mac --x64',
+    'dist:mac': ['--arm64', '--x64'],
+    'dist:mac:arm64': ['--arm64'],
+    'dist:mac:x64': ['--x64'],
   };
-  for (const [name, fragment] of Object.entries(expected)) {
-    assert(scripts[name], `missing script "${name}"`);
-    assert(scripts[name].includes(fragment), `script "${name}" does not run ${fragment}`);
-    assert(scripts[name].includes('npm run build'), `script "${name}" does not build first`);
+  for (const [name, flags] of Object.entries(expected)) {
+    const script = scripts[name];
+    assert(script, `missing script "${name}"`);
+    assert(script.includes('electron-builder --mac'), `script "${name}" does not run electron-builder --mac`);
+    assert(script.includes('npm run build'), `script "${name}" does not build first`);
+    for (const flag of flags) {
+      assert(script.includes(flag), `script "${name}" is missing ${flag}`);
+    }
+    // The single-arch scripts must not also ask for the other architecture.
+    for (const other of ['--arm64', '--x64']) {
+      if (!flags.includes(other)) {
+        assert(!script.includes(other), `script "${name}" also passes ${other}`);
+      }
+    }
   }
   assert(scripts['icon:icns'] === 'node tools/make-icns.mjs', 'missing or wrong "icon:icns" script');
-  return [...Object.keys(expected), 'icon:icns'].join(', ');
+  return 'dist:mac(--arm64 --x64), dist:mac:arm64, dist:mac:x64, icon:icns';
 });
 
 let workflow = null;
@@ -306,11 +421,20 @@ check('workflow installs with node 22 and npm ci', () => {
   return 'node 22, npm cache, npm ci';
 });
 
-check('workflow packages both arches', () => {
+check('workflow packages one arch per job', () => {
   const steps = workflow.jobs.mac.steps || [];
   const pkg = steps.find((s) => String(s.run || '').includes('electron-builder --mac'));
   assert(pkg, 'no electron-builder --mac step');
-  assert(pkg.run.includes('matrix.arch'), 'package step does not use the matrix arch');
+  // The arch must reach the CLI; a config-level arch list would ignore it and
+  // every matrix job would build both.
+  assert(
+    String(pkg.run).includes('--${{ matrix.arch }}'),
+    `package step does not pass the matrix arch to the CLI: ${pkg.run}`,
+  );
+  assert(
+    !String(pkg.run).includes('--universal'),
+    'package step builds a universal binary instead of one arch per job',
+  );
   assert(pkg.run.includes('npm run build') || steps.some((s) => s.run === 'npm run build'), 'does not compile first');
   return pkg.run;
 });

@@ -4,8 +4,12 @@ const zlib = require('node:zlib');
 const fs = require('node:fs');
 const path = require('node:path');
 
-const S = 256;
+const S = 1024;
 const SS = 3; // supersampling factor per axis
+
+// The mark was drawn on a 256px grid; U maps that grid onto S so every constant
+// below scales with the output size. Changing S rescales the whole drawing.
+const U = S / 256;
 
 const BG_TOP = [18, 26, 28];
 const BG_BOTTOM = [10, 16, 18];
@@ -16,18 +20,18 @@ const WHITE = [236, 254, 252];
 
 const cx = S / 2;
 const cy = S / 2;
-const RING_R = 74;
-const RING_W = 13;
-const SPOKE_OUT = 108;
-const SPOKE_IN = 26;
-const SPOKE_W = 11;
-const HUB_R = 30;
-const corner = 56;
+const RING_R = 74 * U;
+const RING_W = 13 * U;
+const SPOKE_OUT = 108 * U;
+const SPOKE_IN = 26 * U;
+const SPOKE_W = 11 * U;
+const HUB_R = 30 * U;
+const corner = 56 * U;
 
 function roundedAlpha(x, y) {
   const dx = Math.max(corner - x, 0, x - (S - corner));
   const dy = Math.max(corner - y, 0, y - (S - corner));
-  return Math.max(0, Math.min(1, corner - Math.hypot(dx, dy) + 0.5));
+  return Math.max(0, Math.min(1, (corner - Math.hypot(dx, dy) + 0.5 * U) / U));
 }
 
 function mix(a, b, t) {
@@ -65,15 +69,15 @@ function sample(x, y) {
 
   // background: vertical gradient plate with a faint radial lift
   let col = mix(BG_TOP, BG_BOTTOM, py / S);
-  col = mix(col, [26, 44, 46], Math.max(0, 1 - r / 120) * 0.55);
+  col = mix(col, [26, 44, 46], Math.max(0, 1 - r / (120 * U)) * 0.55);
 
-  const tealAt = (d) => mix(TEAL_LIGHT, TEAL_DARK, Math.min(1, d / 110));
+  const tealAt = (d) => mix(TEAL_LIGHT, TEAL_DARK, Math.min(1, d / (110 * U)));
 
   // spokes
   for (const s of spokes) {
     const d = segDist(px, py, s.ax, s.ay, s.bx, s.by);
     if (d < SPOKE_W / 2) {
-      const edge = SPOKE_W / 2 - d;
+      const edge = (SPOKE_W / 2 - d) / U;
       col = mix(col, tealAt(r), Math.min(1, edge));
     }
   }
@@ -81,22 +85,22 @@ function sample(x, y) {
   // outer rim
   const ringD = Math.abs(r - RING_R);
   if (ringD < RING_W / 2) {
-    const edge = Math.min(1, RING_W / 2 - ringD);
+    const edge = Math.min(1, (RING_W / 2 - ringD) / U);
     let ring = tealAt(r);
-    const hl = Math.max(0, 1 - Math.hypot(px - (cx - 46), py - (cy - 46)) / 62);
+    const hl = Math.max(0, 1 - Math.hypot(px - (cx - 46 * U), py - (cy - 46 * U)) / (62 * U));
     ring = mix(ring, WHITE, hl * 0.45);
     col = mix(col, ring, edge);
   }
 
   // hub
-  if (r < HUB_R) col = mix(col, HUB, Math.min(1, HUB_R - r));
+  if (r < HUB_R) col = mix(col, HUB, Math.min(1, (HUB_R - r) / U));
 
   // hub ring accent
-  const hubRing = Math.abs(r - (HUB_R - 6));
-  if (hubRing < 2.4) col = mix(col, TEAL_LIGHT, 0.55 * Math.min(1, (2.4 - hubRing) / 1.2));
+  const hubRing = Math.abs(r - (HUB_R - 6 * U));
+  if (hubRing < 2.4 * U) col = mix(col, TEAL_LIGHT, 0.55 * Math.min(1, (2.4 * U - hubRing) / (1.2 * U)));
 
   // centre pin
-  if (r < 7) col = mix(col, WHITE, Math.min(1, 7 - r));
+  if (r < 7 * U) col = mix(col, WHITE, Math.min(1, (7 * U - r) / U));
 
   return col;
 }

@@ -64,6 +64,10 @@ npm run dist:mac:arm64  # Apple Silicon only
 npm run dist:mac:x64    # Intel only
 ```
 
+Which architectures get built comes from those flags, not from the config: `mac.target`
+deliberately carries no `arch` lists, because an arch list there overrides `--arm64` and
+`--x64` and every invocation would emit both.
+
 Output lands in `dist/`:
 
 | File | For |
@@ -88,7 +92,8 @@ architectures and uploads the installers. It reads the same variables from repos
 secrets and skips signing when they are missing.
 
 Two helpers keep this maintainable from any OS: `npm run icon:icns` rebuilds
-`build/icon.icns` from `build/icon.png` without macOS tooling, and `npm run verify:mac`
+`build/icon.icns` from `build/icon.png` (insetting the artwork to the macOS 824/1024 tile
+margin — the PNG itself stays full-bleed for Windows), and `npm run verify:mac`
 checks the whole macOS configuration (config, entitlements, icon container, workflow,
 scripts) and exits non-zero on a problem.
 

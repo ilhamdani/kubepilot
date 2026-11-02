@@ -34,6 +34,16 @@ const ELEMENTS = [
   ['ic14', 512],
 ];
 
+// macOS icons are drawn on a grid with a margin: the rounded tile covers 824 of
+// 1024 pixels, the rest is transparent. A full-bleed icon (what Windows wants,
+// and what build/icon.png is) sits visibly larger than its Dock neighbours, so
+// the inset is applied here, in the ICNS only, and never to the PNG.
+const HIG_TILE = 824 / 1024;
+
+// Minimum source size. Anything smaller means the 512 and 1024 entries would be
+// interpolated, which reads as a soft icon next to native ones.
+const MIN_SOURCE = 1024;
+
 // ---------------------------------------------------------------- PNG decode
 
 const CRC_TABLE = (() => {
@@ -148,8 +158,8 @@ function decodePng(file) {
 
 // ---------------------------------------------------------------- resampling
 
-// Catmull-Rom, used when enlarging. The source icon is 256px, so the 512 and
-// 1024 entries are interpolated rather than invented.
+// Catmull-Rom, for the rare case where the source is smaller than an entry.
+// build/icon.png is 1024, so in practice every entry here is a downscale.
 function catmullRom(t) {
   const a = -0.5;
   const x = Math.abs(t);
@@ -235,12 +245,35 @@ function resample(src, sw, sh, dw, dh) {
       }
       const o = (y * dw + x) * 4;
       const alpha = a / 255;
-      // Un-premultiply.
-      out[o] = alpha > 0 ? Math.min(255, Math.round(r / alpha)) : 0;
-      out[o + 1] = alpha > 0 ? Math.min(255, Math.round(g / alpha)) : 0;
-      out[o + 2] = alpha > 0 ? Math.min(255, Math.round(b / alpha)) : 0;
-      out[o + 3] = Math.min(255, Math.round(a));
+      // Un-premultiply. Both ends need clamping: Catmull-Rom undershoots below
+      // zero on a hard edge, and a negative value written into a Buffer wraps to
+      // 255 - which showed up as a ring of opaque black pixels around the tile.
+      out[o] = alpha > 0 ? clamp255(r / alpha) : 0;
+      out[o + 1] = alpha > 0 ? clamp255(g / alpha) : 0;
+      out[o + 2] = alpha > 0 ? clamp255(b / alpha) : 0;
+      out[o + 3] = clamp255(a);
     }
+  }
+  return out;
+}
+
+function clamp255(v) {
+  return Math.max(0, Math.min(255, Math.round(v)));
+}
+
+// Draws the source onto a transparent canvas with the HIG margin. The artwork is
+// scaled to HIG_TILE of the edge and centred; everything outside stays clear.
+function compose(source, size) {
+  const art = Math.max(1, Math.round(size * HIG_TILE));
+  const offset = Math.floor((size - art) / 2);
+  const scaled =
+    art === source.width && art === source.height
+      ? source.data
+      : resample(source.data, source.width, source.height, art, art);
+
+  const out = Buffer.alloc(size * size * 4);
+  for (let y = 0; y < art; y++) {
+    scaled.copy(out, ((y + offset) * size + offset) * 4, y * art * 4, (y + 1) * art * 4);
   }
   return out;
 }
@@ -293,14 +326,22 @@ function buildIcns(elements) {
 }
 
 const source = decodePng(srcPath);
+
+if (source.width !== source.height) {
+  throw new Error(
+    `${path.relative(process.cwd(), srcPath)} is ${source.width}x${source.height}; the icon must be square`,
+  );
+}
+if (source.width < MIN_SOURCE) {
+  throw new Error(
+    `${path.relative(process.cwd(), srcPath)} is ${source.width}x${source.height}; at least ${MIN_SOURCE}x${MIN_SOURCE} is required, otherwise the 512 and 1024 entries are upscaled and look soft next to native icons`,
+  );
+}
+
 const cache = new Map();
 const elements = ELEMENTS.map(([type, size]) => {
   if (!cache.has(size)) {
-    const pixels =
-      size === source.width && size === source.height
-        ? source.data
-        : resample(source.data, source.width, source.height, size, size);
-    cache.set(size, encodePng(size, pixels));
+    cache.set(size, encodePng(size, compose(source, size)));
   }
   return [type, cache.get(size)];
 });
