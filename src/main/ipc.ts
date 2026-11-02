@@ -267,7 +267,8 @@ export function registerIpc(registry: ClusterRegistry): void {
       });
       portForwards.set(id, { process: child, state });
       const emit = (next: PortForwardState) => {
-        portForwards.get(id)!.state = next;
+        const session = portForwards.get(id);
+        if (session) session.state = next;
         if (!event.sender.isDestroyed()) event.sender.send('kubepilot:portforward-state', next);
       };
       child.stdout?.on('data', (chunk) => {
@@ -276,6 +277,12 @@ export function registerIpc(registry: ClusterRegistry): void {
       child.stderr?.on('data', (chunk) => {
         const text = String(chunk).trim();
         if (text) emit({ ...state, status: 'error', error: text });
+      });
+      child.on('error', (err) => {
+        // Spawning a missing binary emits 'error'; without a listener the main
+        // process would die instead of reporting the problem.
+        emit({ ...state, status: 'error', error: `kubectl could not be started: ${err.message}` });
+        portForwards.delete(id);
       });
       child.on('exit', () => {
         portForwards.delete(id);

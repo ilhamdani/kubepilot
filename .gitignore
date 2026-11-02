@@ -9,3 +9,4 @@ installer/
 shot*.png
 .DS_Store
 .tmp-edge*/
+.tmp-run*/

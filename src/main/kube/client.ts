@@ -25,10 +25,15 @@ export class KubeApiError extends Error {
   }
 }
 
-function apiBase(apiVersion: string, plural: string): string {
-  if (!apiVersion || apiVersion === 'v1') return `/api/v1/${plural}`;
+/**
+ * Group/version prefix only. The resource segment is appended by buildPath so
+ * the namespace always lands between the version and the plural, which is what
+ * the API server expects: /api/v1/namespaces/{ns}/pods
+ */
+function apiBase(apiVersion: string): string {
+  if (!apiVersion || apiVersion === 'v1') return '/api/v1';
   const [group, version] = apiVersion.split('/');
-  return `/apis/${group}/${version}/${plural}`;
+  return `/apis/${group}/${version}`;
 }
 
 export function buildPath(
@@ -38,8 +43,9 @@ export function buildPath(
   namespace?: string,
   name?: string,
 ): string {
-  let path = apiBase(apiVersion, plural);
+  let path = apiBase(apiVersion);
   if (namespaced && namespace) path += `/namespaces/${encodeURIComponent(namespace)}`;
+  path += `/${plural}`;
   if (name) path += `/${encodeURIComponent(name)}`;
   return path;
 }
@@ -348,7 +354,9 @@ export class KubeClient {
       });
       const isHttps = url.protocol === 'https:';
       const send = isHttps ? httpsRequest : httpRequest;
-      const opts: any = { method: 'GET', headers: this.headers({ Accept: 'text/plain' }) };
+      // The log endpoint negotiates media types strictly: a concrete `Accept`
+      // such as text/plain is rejected with 406. `*/*` is what kubectl sends.
+      const opts: any = { method: 'GET', headers: this.headers({ Accept: '*/*' }) };
       if (isHttps) {
         opts.agent = this.agent;
         opts.rejectUnauthorized = !this.auth.insecureSkipTlsVerify;
@@ -398,7 +406,9 @@ export class KubeClient {
   exec(req: ExecRequest, handlers: ExecHandlers): { write: (d: string) => void; resize: (c: number, r: number) => void; close: () => void } {
     const base = this.server.replace(/^http/, 'ws');
     const params = new URLSearchParams();
-    for (const c of req.command) params.append('command', c);
+    // Fall back to a plain shell rather than crashing when no command is given.
+    const command = req.command?.length ? req.command : ['/bin/sh', '-c', 'clear; exec /bin/sh'];
+    for (const c of command) params.append('command', c);
     params.set('stdin', '1');
     params.set('stdout', '1');
     params.set('stderr', '1');
@@ -409,7 +419,8 @@ export class KubeClient {
     )}/exec?${params.toString()}`;
 
     const ws = new WebSocket(url, ['v5.channel.k8s.io', 'v4.channel.k8s.io'], {
-      headers: this.headers(),
+      // Same negotiation trap as logs: the exec route only accepts `*/*`.
+      headers: this.headers({ Accept: '*/*' }),
       ca: this.auth.caData,
       cert: this.auth.certData,
       key: this.auth.keyData,
@@ -425,7 +436,19 @@ export class KubeClient {
       const payload = raw.subarray(1);
       if (channel === 1) handlers.onData('stdout', decoder.decode(payload));
       else if (channel === 2) handlers.onData('stderr', decoder.decode(payload));
-      else if (channel === 3) handlers.onError(decoder.decode(payload));
+      else if (channel === 3) {
+        // Channel 3 carries a metav1.Status frame. A command that simply ends
+        // sends {"status":"Success"}, which must not be painted as an error.
+        const text = decoder.decode(payload).trim();
+        if (!text) return;
+        try {
+          const status = JSON.parse(text);
+          if (status.status === 'Success') return;
+          handlers.onError(String(status.message || status.reason || text));
+        } catch {
+          handlers.onError(text);
+        }
+      }
     });
     ws.on('error', (err) => handlers.onError(err.message));
     ws.on('close', (code) => handlers.onClose(code));
