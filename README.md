@@ -39,6 +39,17 @@ npm run dist       # Windows NSIS installer in dist/
 
 Requires Node 22 or newer. `npm run dist` produces `KubePilot-<version>-x64-setup.exe`.
 
+### Documentation site
+
+A static documentation site and landing page live in `site/`. Preview it locally:
+
+```bash
+npm run site        # http://localhost:4173
+```
+
+The pages are plain HTML and CSS — no build step. Screenshots are captured from the running app
+with `node tools/shots.mjs`, so the docs never drift far from the real UI.
+
 ### Keyboard shortcuts
 
 | Shortcut | Action |

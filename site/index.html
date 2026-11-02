@@ -1,0 +1,314 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>KubePilot — an open-source Kubernetes IDE</title>
+    <meta
+      name="description"
+      content="KubePilot is a fast desktop Kubernetes IDE: live resource tables, details, YAML editing, logs, exec terminals, metrics and port forwarding across every cluster in your kubeconfig. Open source, MIT."
+    />
+    <link rel="icon" href="assets/shots/../icon.png" />
+    <link rel="stylesheet" href="assets/site.css" />
+  </head>
+  <body>
+    <header class="nav">
+      <div class="shell nav-inner">
+        <a class="brand" href="index.html">
+          <span class="brand-mark">KP</span>
+          KubePilot
+        </a>
+        <nav class="nav-links">
+          <a href="docs/index.html">Docs</a>
+          <a href="docs/guide.html">Guide</a>
+          <a href="docs/reference.html">Reference</a>
+          <a class="nav-cta" href="docs/index.html">Get started</a>
+        </nav>
+      </div>
+    </header>
+
+    <main>
+      <!-- hero -->
+      <section class="hero">
+        <div class="shell hero-grid">
+          <div>
+            <span class="eyebrow">Open source · MIT</span>
+            <h1>Steer your clusters <em>without leaving the keyboard.</em></h1>
+            <p class="lede">
+              KubePilot is a desktop Kubernetes IDE. Browse workloads, read logs, open a shell and
+              edit YAML across every cluster in your kubeconfig — in one window, with no account
+              and no telemetry.
+            </p>
+            <div class="hero-actions">
+              <a class="btn btn--primary" href="docs/index.html">Get started</a>
+              <a class="btn btn--ghost" href="docs/guide.html">See what it does</a>
+            </div>
+            <div class="install">
+              <span>$</span>
+              <pre><code>git clone https://github.com/kubepilot/kubepilot
+cd kubepilot &amp;&amp; npm i &amp;&amp; npm run dev</code></pre>
+              <button class="copy" data-copy="git clone https://github.com/kubepilot/kubepilot && cd kubepilot && npm i && npm run dev">copy</button>
+            </div>
+          </div>
+
+          <figure class="frame" style="margin: 0" data-reveal>
+            <img src="assets/shots/hero.png" alt="KubePilot cluster overview showing pod, node and deployment health" width="1080" height="627" />
+            <figcaption class="frame-caption">
+              <span>Cluster overview</span>
+              <span>demo cluster · v1.29.6</span>
+            </figcaption>
+          </figure>
+        </div>
+      </section>
+
+      <!-- stat strip -->
+      <section class="strip">
+        <div class="shell strip-grid">
+          <div class="strip-cell"><b>35</b><span>resource kinds</span></div>
+          <div class="strip-cell"><b>8</b><span>kubeconfig contexts</span></div>
+          <div class="strip-cell"><b>0</b><span>telemetry</span></div>
+          <div class="strip-cell"><b>MIT</b><span>license</span></div>
+        </div>
+      </section>
+
+      <!-- features -->
+      <section class="section">
+        <div class="shell">
+          <div class="section-label"><b>01</b> Capabilities</div>
+          <div class="section-head">
+            <h2>Everything you touch in a cluster, in one window.</h2>
+            <p class="lede">
+              Built around the loop you actually run: find the object, look at it, read what it is
+              complaining about, change it.
+            </p>
+          </div>
+
+          <div class="grid" data-reveal>
+            <article class="cell cell--wide">
+              <h3><span class="idx">01</span> Live resource tables</h3>
+              <p>
+                Watch-backed lists for 35 kinds across workloads, config, network, storage and
+                access control. Sort, filter, scope by namespace — rows update as the API server
+                reports changes.
+              </p>
+            </article>
+            <article class="cell cell--wide">
+              <h3><span class="idx">02</span> Details that explain status</h3>
+              <p>
+                Containers, conditions, volumes, labels and the events behind a failure, in one
+                drawer. Status colours follow Kubernetes semantics, not just <code>phase</code>.
+              </p>
+            </article>
+            <article class="cell">
+              <h3><span class="idx">03</span> YAML editing</h3>
+              <p>Monaco editor with server-side apply and field manager.</p>
+            </article>
+            <article class="cell">
+              <h3><span class="idx">04</span> Streaming logs</h3>
+              <p>Follow, pause, wrap, switch containers.</p>
+            </article>
+            <article class="cell">
+              <h3><span class="idx">05</span> Exec terminal</h3>
+              <p>A real shell over WebSocket, with resize.</p>
+            </article>
+            <article class="cell cell--wide">
+              <h3><span class="idx">06</span> Metrics with capacity fallbacks</h3>
+              <p>
+                Pod and node CPU/memory from <code>metrics.k8s.io</code>. When metrics-server is
+                missing, requests and limits still tell you where the ceiling is.
+              </p>
+            </article>
+            <article class="cell cell--wide">
+              <h3><span class="idx">07</span> Scale, restart, forward, delete</h3>
+              <p>
+                The four actions you run a hundred times a week, one keystroke away — including
+                managed <code>port-forward</code> children.
+              </p>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <!-- tour -->
+      <section class="section section--tight">
+        <div class="shell">
+          <div class="section-label"><b>02</b> Tour</div>
+
+          <div class="tour" data-reveal>
+            <div class="tour-text">
+              <h3>Find it, then read the room.</h3>
+              <p>
+                The navigator groups every kind the API server advertises, including custom
+                resources. Click a row and the table keeps your place while the drawer explains
+                what you are looking at.
+              </p>
+              <ul>
+                <li>Namespace scope and free-text filtering per table</li>
+                <li>Pin any view to the hotbar for one-click returns</li>
+                <li>Restart counts and ready ratios surfaced as columns</li>
+              </ul>
+            </div>
+            <figure class="frame" style="margin: 0">
+              <img src="assets/shots/pods.png" alt="Pods table with statuses, restarts, CPU and memory columns" />
+              <figcaption class="frame-caption"><span>Workloads / Pods</span><span>21 objects</span></figcaption>
+            </figure>
+          </div>
+
+          <div class="tour tour--flip" data-reveal>
+            <div class="tour-text">
+              <h3>Edit the object, not a copy of it.</h3>
+              <p>
+                The drawer's YAML tab is a live document. Apply sends a server-side apply with a
+                stable field manager, so repeated applies converge instead of fighting.
+              </p>
+              <ul>
+                <li>Syntax highlighting and folding for large manifests</li>
+                <li>Apply, revert and conflict feedback in the footer</li>
+                <li>Secrets stay masked until you ask for them</li>
+              </ul>
+            </div>
+            <figure class="frame" style="margin: 0">
+              <img src="assets/shots/yaml.png" alt="YAML editor showing a pod manifest inside the details drawer" />
+              <figcaption class="frame-caption"><span>Details / YAML</span><span>server-side apply</span></figcaption>
+            </figure>
+          </div>
+
+          <div class="tour" data-reveal>
+            <div class="tour-text">
+              <h3>Logs and a shell, without the tab dance.</h3>
+              <p>
+                The dock holds logs and terminals side by side. Terminals speak
+                <code>v5.channel.k8s.io</code>, so stdin, stdout, stderr and resize all work the way
+                <code>kubectl exec</code> does.
+              </p>
+              <ul>
+                <li>Follow mode with pause and wrap toggles</li>
+                <li>Container picker for multi-container pods</li>
+                <li>Resize-aware terminal, resumable after reconnect</li>
+              </ul>
+            </div>
+            <figure class="frame" style="margin: 0">
+              <img src="assets/shots/terminal.png" alt="Terminal dock running ls inside a pod, next to the details drawer" />
+              <figcaption class="frame-caption"><span>Dock / Terminal</span><span>exec session</span></figcaption>
+            </figure>
+          </div>
+        </div>
+      </section>
+
+      <!-- keyboard -->
+      <section class="section section--tight">
+        <div class="shell">
+          <div class="section-label"><b>03</b> Keyboard first</div>
+          <div class="section-head">
+            <h2>Built for people who do not want to reach for the mouse.</h2>
+            <p class="lede">
+              The palette indexes clusters, kinds and actions. Type three letters and you are
+              there.
+            </p>
+          </div>
+          <div class="keys" data-reveal>
+            <div class="key-row"><span>Command palette</span><span><kbd>Ctrl</kbd> <kbd>K</kbd></span></div>
+            <div class="key-row"><span>Preferences</span><span><kbd>Ctrl</kbd> <kbd>,</kbd></span></div>
+            <div class="key-row"><span>Close tab</span><span><kbd>Ctrl</kbd> <kbd>W</kbd></span></div>
+            <div class="key-row"><span>Dismiss overlay</span><span><kbd>Esc</kbd></span></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- architecture -->
+      <section class="section section--tight">
+        <div class="shell">
+          <div class="section-label"><b>04</b> How it is built</div>
+          <div class="section-head">
+            <h2>A small surface, deliberately.</h2>
+            <p class="lede">
+              Three processes, one typed bridge, and a Kubernetes client written directly against
+              <code>node:https</code> — no client library, no bundled kubectl.
+            </p>
+          </div>
+
+          <dl class="arch" data-reveal>
+            <div class="arch-row">
+              <dt>Main</dt>
+              <dd>
+                Owns cluster connections: kubeconfig parsing, exec credential plugins, watches,
+                log streams, exec sessions and port-forward children.
+              </dd>
+            </div>
+            <div class="arch-row">
+              <dt>Preload</dt>
+              <dd>
+                A single <code>contextBridge</code> surface. Context isolation on, node integration
+                off — the renderer never touches Node.
+              </dd>
+            </div>
+            <div class="arch-row">
+              <dt>Renderer</dt>
+              <dd>
+                React 19 + Zustand. Tables subscribe to a shared list cache so ten views of the same
+                kind cost one watch.
+              </dd>
+            </div>
+            <div class="arch-row">
+              <dt>Backends</dt>
+              <dd>
+                <code>LiveBackend</code> talks to an API server; <code>DemoBackend</code> serves a
+                deterministic cluster so the UI runs with no kubeconfig at all.
+              </dd>
+            </div>
+          </dl>
+        </div>
+      </section>
+
+      <!-- install -->
+      <section class="section">
+        <div class="shell">
+          <div class="section-label"><b>05</b> Install</div>
+          <div class="cta" data-reveal>
+            <div>
+              <h2>Two ways in.</h2>
+              <p>
+                Grab the Windows installer from the releases page, or run it from source — Node 22
+                and a kubeconfig are all you need.
+              </p>
+            </div>
+            <div style="display: flex; gap: 0.7rem; flex-wrap: wrap">
+              <a class="btn btn--primary" href="docs/index.html">Install guide</a>
+              <a class="btn btn--ghost" href="docs/reference.html">Requirements</a>
+            </div>
+          </div>
+
+          <div class="grid" style="margin-top: 1px" data-reveal>
+            <article class="cell cell--wide">
+              <h3>Windows installer</h3>
+              <p>
+                <code>KubePilot-0.1.0-x64-setup.exe</code> — per-user install, choose your own
+                directory, desktop and start-menu shortcuts.
+              </p>
+            </article>
+            <article class="cell cell--wide">
+              <h3>From source</h3>
+              <p>
+                <code>npm install</code>, then <code>npm run dev</code>. Ship a build with
+                <code>npm run dist</code>.
+              </p>
+            </article>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <div class="shell footer-inner">
+        <span>KubePilot · MIT licensed · an independent reimplementation, not affiliated with Mirantis</span>
+        <span style="display: flex; gap: 1.4rem">
+          <a href="docs/index.html">Docs</a>
+          <a href="docs/guide.html">Guide</a>
+          <a href="docs/reference.html">Reference</a>
+        </span>
+      </div>
+    </footer>
+
+    <script src="assets/site.js" defer></script>
+  </body>
+</html>

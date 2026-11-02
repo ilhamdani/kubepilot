@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Getting started — KubePilot</title>
+    <meta name="description" content="Install KubePilot, run it from source, and connect your first cluster." />
+    <link rel="icon" href="../assets/icon.png" />
+    <link rel="stylesheet" href="../assets/site.css" />
+  </head>
+  <body>
+    <header class="nav">
+      <div class="shell nav-inner">
+        <a class="brand" href="../index.html">
+          <span class="brand-mark">KP</span>
+          KubePilot
+        </a>
+        <nav class="nav-links">
+          <a href="index.html" aria-current="page">Docs</a>
+          <a href="guide.html">Guide</a>
+          <a href="reference.html">Reference</a>
+          <a class="nav-cta" href="../index.html">Home</a>
+        </nav>
+      </div>
+    </header>
+
+    <div class="shell docs">
+      <aside class="sidebar">
+        <div class="sidebar-group">
+          <span>Start here</span>
+          <a href="index.html" aria-current="page">Getting started</a>
+        </div>
+        <div class="sidebar-group">
+          <span>Using KubePilot</span>
+          <a href="guide.html">Feature guide</a>
+        </div>
+        <div class="sidebar-group">
+          <span>Reference</span>
+          <a href="reference.html">Shortcuts &amp; internals</a>
+        </div>
+        <div class="sidebar-group">
+          <span>Project</span>
+          <a href="../index.html">Landing page</a>
+        </div>
+      </aside>
+
+      <main class="prose">
+        <span class="eyebrow">Documentation</span>
+        <h1>Getting started</h1>
+        <p class="lede">
+          KubePilot starts with a working demo cluster, so you can explore the whole interface
+          before you point it at anything real. Connecting a cluster is one file away.
+        </p>
+
+        <figure class="shot frame" style="margin-top: 2rem">
+          <a class="zoom" href="../assets/shots/hero.png" target="_blank" rel="noopener"><img src="../assets/shots/hero.png" alt="KubePilot cluster overview" /></a>
+          <figcaption>First run: the bundled demo cluster, fully populated.</figcaption>
+        </figure>
+
+        <h2 id="requirements">Requirements</h2>
+        <table class="spec">
+          <thead>
+            <tr><th>Item</th><th>Needed for</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Windows 10/11 x64</td><td>The packaged installer</td></tr>
+            <tr><td>Node 22+</td><td>Running from source</td></tr>
+            <tr><td>A kubeconfig</td><td>Connecting real clusters (optional — the demo needs nothing)</td></tr>
+            <tr><td>Kubernetes 1.24+</td><td>Server-side apply, <code>metrics.k8s.io</code>, exec</td></tr>
+          </tbody>
+        </table>
+
+        <h2 id="install">Install the app</h2>
+        <ol>
+          <li>Download <code>KubePilot-0.1.0-x64-setup.exe</code> from the releases page.</li>
+          <li>Run it. The install is per-user, so no administrator prompt is required.</li>
+          <li>Pick a directory, finish, and launch <strong>KubePilot</strong>.</li>
+        </ol>
+        <p>
+          The installer is unsigned, so SmartScreen will show a warning the first time. Choose
+          <em>More info → Run anyway</em>, or build from source if you would rather not trust a
+          binary.
+        </p>
+
+        <h2 id="source">Run from source</h2>
+        <pre><code>git clone https://github.com/kubepilot/kubepilot
+cd kubepilot
+npm install
+npm run dev</code></pre>
+        <p>Other scripts:</p>
+        <table class="spec">
+          <tbody>
+            <tr><td>npm run dev</td><td>Dev server with hot reload for the renderer</td></tr>
+            <tr><td>npm run build</td><td>Compile main, preload and renderer into <code>out/</code></td></tr>
+            <tr><td>npm run typecheck</td><td>Type-check the whole project</td></tr>
+            <tr><td>npm run dist</td><td>Build the Windows installer into <code>dist/</code></td></tr>
+            <tr><td>npm run icon</td><td>Regenerate <code>build/icon.png</code></td></tr>
+          </tbody>
+        </table>
+
+        <div class="note">
+          <b>Note</b>
+          The packaged app and the dev server keep separate settings. If you switch between them,
+          expect to re-add kubeconfig files.
+        </div>
+
+        <h2 id="connect">Connect a cluster</h2>
+        <p>
+          KubePilot reads the same files <code>kubectl</code> does, in this order:
+        </p>
+        <ol>
+          <li>Every path in the <code>KUBECONFIG</code> environment variable (path-list separated).</li>
+          <li><code>~/.kube/config</code>.</li>
+          <li>Any additional files you add under <strong>Preferences → Kubeconfig files</strong>.</li>
+        </ol>
+        <p>
+          Every context in those files becomes a cluster in the left rail. Authentication supports
+          client certificates, bearer tokens, basic auth and <code>exec</code> credential plugins
+          (EKS, GKE, AKS and friends), with the plugin's token cached until shortly before it
+          expires.
+        </p>
+        <pre><code># see what KubePilot will pick up
+kubectl config get-contexts
+
+# point it at a non-default file for one session
+KUBECONFIG=/path/to/config npm run dev</code></pre>
+
+        <h2 id="first-run">Your first five minutes</h2>
+        <ol>
+          <li>Open <strong>Pods</strong> under Workloads. Note the restarts and ready columns.</li>
+          <li>Double-click a row to open the details drawer, then the <strong>Events</strong> tab.</li>
+          <li>Open <strong>Logs</strong> from the drawer's Actions block and watch the stream.</li>
+          <li>Open <strong>Terminal</strong> and run <code>ls</code> — that is a real exec session.</li>
+          <li>Press <kbd>Ctrl</kbd> + <kbd>K</kbd> and type <code>node</code> to jump to Nodes.</li>
+        </ol>
+
+        <h2 id="next">Where next</h2>
+        <p>
+          The <a href="guide.html">feature guide</a> walks through each surface with screenshots.
+          The <a href="reference.html">reference</a> covers shortcuts, what is written to disk, and
+          how the process split works.
+        </p>
+
+        <nav class="pager">
+          <a href="../index.html">← Home</a>
+          <a href="guide.html">Feature guide →</a>
+        </nav>
+      </main>
+    </div>
+
+    <footer class="footer">
+      <div class="shell footer-inner">
+        <span>KubePilot · MIT licensed</span>
+        <span style="display: flex; gap: 1.4rem">
+          <a href="index.html">Docs</a>
+          <a href="guide.html">Guide</a>
+          <a href="reference.html">Reference</a>
+        </span>
+      </div>
+    </footer>
+
+    <script src="../assets/site.js" defer></script>
+  </body>
+</html>

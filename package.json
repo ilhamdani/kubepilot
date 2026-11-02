@@ -35,7 +35,8 @@
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "icon": "node tools/make-icon.js",
     "package": "npm run build && electron-builder --win --dir",
-    "dist": "npm run build && electron-builder --win"
+    "dist": "npm run build && electron-builder --win",
+    "site": "node tools/serve.mjs 4173 site"
   },
   "dependencies": {
     "js-yaml": "^5.5.0",

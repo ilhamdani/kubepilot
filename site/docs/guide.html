@@ -1,0 +1,205 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Feature guide — KubePilot</title>
+    <meta name="description" content="A screenshot tour of every surface in KubePilot: tables, details, YAML, logs, terminal, metrics, palette and preferences." />
+    <link rel="icon" href="../assets/icon.png" />
+    <link rel="stylesheet" href="../assets/site.css" />
+  </head>
+  <body>
+    <header class="nav">
+      <div class="shell nav-inner">
+        <a class="brand" href="../index.html">
+          <span class="brand-mark">KP</span>
+          KubePilot
+        </a>
+        <nav class="nav-links">
+          <a href="index.html">Docs</a>
+          <a href="guide.html" aria-current="page">Guide</a>
+          <a href="reference.html">Reference</a>
+          <a class="nav-cta" href="../index.html">Home</a>
+        </nav>
+      </div>
+    </header>
+
+    <div class="shell docs">
+      <aside class="sidebar">
+        <div class="sidebar-group">
+          <span>Start here</span>
+          <a href="index.html">Getting started</a>
+        </div>
+        <div class="sidebar-group">
+          <span class="current">Using KubePilot</span>
+          <a href="#navigator">Navigator &amp; tables</a>
+          <a href="#details">Details drawer</a>
+          <a href="#yaml">Editing YAML</a>
+          <a href="#logs">Logs</a>
+          <a href="#terminal">Terminal</a>
+          <a href="#metrics">Metrics</a>
+          <a href="#actions">Actions</a>
+          <a href="#palette">Palette &amp; hotbar</a>
+          <a href="#themes">Themes</a>
+        </div>
+        <div class="sidebar-group">
+          <span>Reference</span>
+          <a href="reference.html">Shortcuts &amp; internals</a>
+        </div>
+      </aside>
+
+      <main class="prose">
+        <span class="eyebrow">Documentation</span>
+        <h1>Feature guide</h1>
+        <p class="lede">
+          Every screen below is the real application, running against its demo cluster. Nothing here
+          is a mockup.
+        </p>
+
+        <h2 id="navigator">Navigator &amp; tables</h2>
+        <p>
+          The navigator lists every resource kind the API server advertises, grouped by purpose:
+          workloads, config, network, storage, access control, cluster and custom resources. Custom
+          resources are discovered from <code>/apis</code>, so CRDs appear without configuration.
+        </p>
+        <figure class="shot frame">
+          <a class="zoom" href="../assets/shots/pods.png" target="_blank" rel="noopener"><img src="../assets/shots/pods.png" alt="Pods table showing status, ready, restarts, CPU, memory, node and age columns" /></a>
+          <figcaption>Pods: status bricks, ready ratios, restart counts and live usage in one row.</figcaption>
+        </figure>
+        <ul>
+          <li><strong>Sort</strong> any column by clicking its header; click again to reverse.</li>
+          <li><strong>Scope</strong> to a namespace with the selector, or stay on <em>All namespaces</em>.</li>
+          <li><strong>Filter</strong> is a plain substring match on the name column.</li>
+          <li><strong>Pin</strong> puts the current view on the hotbar in the status bar.</li>
+        </ul>
+        <p>
+          Tables are watch-backed. A list is fetched once, then patched from the watch stream, so a
+          pod that restarts updates in place instead of the table reloading underneath you.
+        </p>
+
+        <h2 id="details">Details drawer</h2>
+        <p>
+          Double-click a row. The drawer has three tabs — Overview, YAML and Events — and stays open
+          while you move through the table.
+        </p>
+        <figure class="shot frame">
+          <a class="zoom" href="../assets/shots/details.png" target="_blank" rel="noopener"><img src="../assets/shots/details.png" alt="Details drawer showing pod metadata, labels, containers, volumes and conditions" /></a>
+          <figcaption>Overview: metadata, labels, pod IP and node, containers with images, volumes and conditions.</figcaption>
+        </figure>
+        <p>
+          Status colours are computed per kind rather than read from <code>phase</code>. A
+          <code>CrashLoopBackOff</code> pod is red because its waiting reason says so; a Deployment
+          is amber when ready replicas trail desired replicas; a PVC is green only when bound.
+        </p>
+
+        <h2 id="yaml">Editing YAML</h2>
+        <p>
+          The YAML tab is a Monaco editor bound to the live object. <strong>Apply</strong> sends a
+          server-side apply with the field manager <code>kubepilot</code>, which makes repeated
+          applies converge instead of conflicting.
+        </p>
+        <figure class="shot frame">
+          <a class="zoom" href="../assets/shots/yaml.png" target="_blank" rel="noopener"><img src="../assets/shots/yaml.png" alt="Monaco YAML editor with a pod manifest, Apply and Revert buttons" /></a>
+          <figcaption>The footer reports sync state: <em>Synced with cluster</em> until you edit.</figcaption>
+        </figure>
+        <div class="note">
+          <b>Heads up</b>
+          Applying a manifest replaces fields you removed. If you only want to change one value,
+          scale and restart actions are safer than a full apply.
+        </div>
+
+        <h2 id="logs">Logs</h2>
+        <p>
+          Open logs from the drawer's Actions block, or from a row's context menu. The dock follows
+          the stream, chunked by the main process so long lines do not stall the UI.
+        </p>
+        <figure class="shot frame">
+          <a class="zoom" href="../assets/shots/logs.png" target="_blank" rel="noopener"><img src="../assets/shots/logs.png" alt="Logs dock streaming container output with pause, wrap and clear controls" /></a>
+          <figcaption>Follow, pause, toggle wrapping, clear — and pick a container when a pod has several.</figcaption>
+        </figure>
+
+        <h2 id="terminal">Terminal</h2>
+        <p>
+          The terminal is a real exec session, negotiated over WebSocket with the
+          <code>v5.channel.k8s.io</code> subprotocol (falling back to <code>v4</code>). Channels
+          carry stdin, stdout, stderr, an error channel and terminal resize.
+        </p>
+        <figure class="shot frame">
+          <a class="zoom" href="../assets/shots/terminal.png" target="_blank" rel="noopener"><img src="../assets/shots/terminal.png" alt="Terminal dock running ls inside a pod" /></a>
+          <figcaption><code>ls</code> inside a pod — the dock keeps logs and shells side by side.</figcaption>
+        </figure>
+
+        <h2 id="metrics">Metrics</h2>
+        <p>
+          CPU and memory for pods and nodes come from <code>metrics.k8s.io</code> and refresh every
+          20 seconds. Node rows show usage against allocatable capacity.
+        </p>
+        <figure class="shot frame">
+          <a class="zoom" href="../assets/shots/nodes.png" target="_blank" rel="noopener"><img src="../assets/shots/nodes.png" alt="Nodes table with CPU and memory usage against capacity" /></a>
+          <figcaption>Nodes: usage against capacity, roles and kubelet version.</figcaption>
+        </figure>
+        <p>
+          Without metrics-server the columns fall back to requests and limits, and the status bar
+          says <em>metrics unavailable</em> instead of showing zeros.
+        </p>
+
+        <h2 id="actions">Actions</h2>
+        <p>Right-click any row for the actions that apply to its kind:</p>
+        <table class="spec">
+          <thead>
+            <tr><th>Action</th><th>Behaviour</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Scale</td><td>Writes the <code>/scale</code> subresource — works for Deployments, StatefulSets, ReplicaSets</td></tr>
+            <tr><td>Restart</td><td>Sets a <code>kubectl.kubernetes.io/restartedAt</code> pod-template annotation</td></tr>
+            <tr><td>Logs / Terminal</td><td>Pods only; opens the dock against that container</td></tr>
+            <tr><td>Port forward</td><td>Spawns a managed <code>kubectl port-forward</code> child with live state</td></tr>
+            <tr><td>Delete</td><td>Confirms first, then deletes with the object's UID as a precondition</td></tr>
+          </tbody>
+        </table>
+
+        <h2 id="palette">Palette &amp; hotbar</h2>
+        <p>
+          <kbd>Ctrl</kbd> + <kbd>K</kbd> opens the palette. It indexes clusters, resource kinds and
+          their descriptions — type <code>cm</code> to reach Config Maps.
+        </p>
+        <figure class="shot frame">
+          <a class="zoom" href="../assets/shots/palette.png" target="_blank" rel="noopener"><img src="../assets/shots/palette.png" alt="Command palette listing clusters and resource kinds" /></a>
+          <figcaption>The palette lists clusters first, then every discovered kind.</figcaption>
+        </figure>
+        <p>
+          Views you pin land on the hotbar in the status bar, numbered 1 to 12. Clicking a slot
+          reopens that exact view — namespace, filter and all.
+        </p>
+
+        <h2 id="themes">Themes &amp; preferences</h2>
+        <p>
+          Preferences holds the theme, the metrics toggle, kubeconfig files and the node-shell image
+          used for debug shells. Settings are stored per user, not per cluster.
+        </p>
+        <figure class="shot frame">
+          <a class="zoom" href="../assets/shots/light.png" target="_blank" rel="noopener"><img src="../assets/shots/light.png" alt="Preferences page in the light theme" /></a>
+          <figcaption>Light theme, same layout and the same teal signal colour.</figcaption>
+        </figure>
+
+        <nav class="pager">
+          <a href="index.html">← Getting started</a>
+          <a href="reference.html">Reference →</a>
+        </nav>
+      </main>
+    </div>
+
+    <footer class="footer">
+      <div class="shell footer-inner">
+        <span>KubePilot · MIT licensed</span>
+        <span style="display: flex; gap: 1.4rem">
+          <a href="index.html">Docs</a>
+          <a href="guide.html">Guide</a>
+          <a href="reference.html">Reference</a>
+        </span>
+      </div>
+    </footer>
+
+    <script src="../assets/site.js" defer></script>
+  </body>
+</html>

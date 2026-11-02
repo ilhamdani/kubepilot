@@ -1,0 +1,215 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Reference — KubePilot</title>
+    <meta name="description" content="Keyboard shortcuts, architecture, files written to disk, troubleshooting and license for KubePilot." />
+    <link rel="icon" href="../assets/icon.png" />
+    <link rel="stylesheet" href="../assets/site.css" />
+  </head>
+  <body>
+    <header class="nav">
+      <div class="shell nav-inner">
+        <a class="brand" href="../index.html">
+          <span class="brand-mark">KP</span>
+          KubePilot
+        </a>
+        <nav class="nav-links">
+          <a href="index.html">Docs</a>
+          <a href="guide.html">Guide</a>
+          <a href="reference.html" aria-current="page">Reference</a>
+          <a class="nav-cta" href="../index.html">Home</a>
+        </nav>
+      </div>
+    </header>
+
+    <div class="shell docs">
+      <aside class="sidebar">
+        <div class="sidebar-group">
+          <span>Start here</span>
+          <a href="index.html">Getting started</a>
+        </div>
+        <div class="sidebar-group">
+          <span>Using KubePilot</span>
+          <a href="guide.html">Feature guide</a>
+        </div>
+        <div class="sidebar-group">
+          <span class="current">Reference</span>
+          <a href="#shortcuts" aria-current="page">Keyboard shortcuts</a>
+          <a href="#architecture">Architecture</a>
+          <a href="#files">Files &amp; data</a>
+          <a href="#troubleshooting">Troubleshooting</a>
+          <a href="#limits">Known limits</a>
+          <a href="#license">License</a>
+        </div>
+      </aside>
+
+      <main class="prose">
+        <span class="eyebrow">Documentation</span>
+        <h1>Reference</h1>
+
+        <h2 id="shortcuts">Keyboard shortcuts</h2>
+        <table class="spec">
+          <thead>
+            <tr><th>Shortcut</th><th>Action</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Ctrl K</td><td>Open the command palette</td></tr>
+            <tr><td>Ctrl Shift P</td><td>Open the command palette (alternative binding)</td></tr>
+            <tr><td>Ctrl ,</td><td>Open Preferences</td></tr>
+            <tr><td>Ctrl W</td><td>Close the active tab</td></tr>
+            <tr><td>Esc</td><td>Close the palette, a modal, the context menu or the drawer</td></tr>
+          </tbody>
+        </table>
+        <p>
+          On macOS the same bindings use <kbd>Cmd</kbd>. The renderer handles these itself, so they
+          work regardless of the native menu.
+        </p>
+
+        <h2 id="architecture">Architecture</h2>
+        <p>KubePilot is an Electron app split into three processes with one typed bridge:</p>
+        <table class="spec">
+          <thead>
+            <tr><th>Process</th><th>Responsibility</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>main</td><td>Kubeconfig parsing, HTTP and WebSocket clients, watches, log streams, exec sessions, port-forward children</td></tr>
+            <tr><td>preload</td><td>One <code>contextBridge</code> object exposing typed calls and event subscriptions</td></tr>
+            <tr><td>renderer</td><td>React UI, list cache, dock, editor — no Node access</td></tr>
+          </tbody>
+        </table>
+        <p>
+          The Kubernetes client is written directly against <code>node:https</code>,
+          <code>node:http</code> and <code>ws</code> rather than using a client library. That keeps
+          the main bundle small and makes reconnect behaviour explicit: watches are line-buffered
+          NDJSON with <code>resourceVersion</code> tracking and exponential backoff.
+        </p>
+        <pre><code>src/
+  main/
+    kube/
+      config.ts    kubeconfig + exec credential plugins
+      client.ts    HTTP/WS client, watch, exec, logs, apply
+      backend.ts   ClusterBackend interface
+      live.ts      real cluster
+      demo.ts      deterministic demo cluster
+    ipc.ts         every channel in one place
+  preload/         contextBridge surface
+  renderer/        React + Zustand
+  shared/          DTOs shared by all three</code></pre>
+        <p>
+          <code>LiveBackend</code> and <code>DemoBackend</code> implement the same interface, which
+          is why the entire UI works with no kubeconfig present.
+        </p>
+
+        <h2 id="files">Files &amp; data</h2>
+        <p>KubePilot writes exactly one file, in Electron's per-user data directory:</p>
+        <table class="spec">
+          <tbody>
+            <tr><td>%APPDATA%\KubePilot\kubepilot-settings.json</td><td>Theme, metrics toggle, extra kubeconfig paths, display names, pinned hotbar items</td></tr>
+          </tbody>
+        </table>
+        <p>
+          Kubeconfig files are read, never modified. Credentials obtained from <code>exec</code>
+          plugins are cached in memory only, and dropped when the app exits.
+        </p>
+        <div class="note">
+          <b>Privacy</b>
+          No telemetry, no analytics, no update pings. The only network traffic is to the API servers
+          you connect to, plus whatever your own credential plugin runs.
+        </div>
+
+        <h2 id="troubleshooting">Troubleshooting</h2>
+        <table class="spec">
+          <thead>
+            <tr><th>Symptom</th><th>Cause and fix</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>No clusters listed</td>
+              <td>
+                Nothing matched <code>KUBECONFIG</code> or <code>~/.kube/config</code>. Add the file
+                under Preferences → Kubeconfig files.
+              </td>
+            </tr>
+            <tr>
+              <td>Cluster shows a red dot</td>
+              <td>
+                Hover for the message. A 401 usually means an expired token from an
+                <code>exec</code> plugin — reconnect to re-run it.
+              </td>
+            </tr>
+            <tr>
+              <td>Some kinds are empty</td>
+              <td>
+                RBAC. A 403 on discovery is reported per kind rather than failing the whole cluster.
+              </td>
+            </tr>
+            <tr>
+              <td>metrics unavailable</td>
+              <td>
+                metrics-server is not installed. Columns fall back to requests and limits.
+              </td>
+            </tr>
+            <tr>
+              <td>Terminal never connects</td>
+              <td>
+                The API server or a proxy may not allow WebSocket upgrades on
+                <code>/exec</code>. Try <code>kubectl exec</code> against the same pod.
+              </td>
+            </tr>
+            <tr>
+              <td>Port forward fails immediately</td>
+              <td>
+                Port forwarding shells out to <code>kubectl</code>; make sure it is on
+                <code>PATH</code>.
+              </td>
+            </tr>
+            <tr>
+              <td>Blank window after an update</td>
+              <td>
+                Delete <code>%APPDATA%\KubePilot</code> to reset settings and cache, then relaunch.
+              </td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h2 id="limits">Known limits</h2>
+        <ul>
+          <li>No Helm release management yet.</li>
+          <li>No CRD schema validation in the YAML editor — it is YAML highlighting, not a schema.</li>
+          <li>The UI does not hide actions your RBAC forbids; the API server returns the error.</li>
+          <li>Single window, single instance.</li>
+          <li>Packaging is Windows-first. The Electron config is portable, but no macOS or Linux targets are configured.</li>
+          <li>No automated test suite yet.</li>
+        </ul>
+
+        <h2 id="license">License</h2>
+        <p>
+          MIT. See <code>LICENSE</code> in the repository. KubePilot is an independent
+          reimplementation: its interaction model and visual language were studied from the publicly
+          distributed Lens desktop application, but no Lens source code is vendored here, and
+          KubePilot is not affiliated with or endorsed by Mirantis.
+        </p>
+
+        <nav class="pager">
+          <a href="guide.html">← Feature guide</a>
+          <a href="index.html">Getting started →</a>
+        </nav>
+      </main>
+    </div>
+
+    <footer class="footer">
+      <div class="shell footer-inner">
+        <span>KubePilot · MIT licensed</span>
+        <span style="display: flex; gap: 1.4rem">
+          <a href="index.html">Docs</a>
+          <a href="guide.html">Guide</a>
+          <a href="reference.html">Reference</a>
+        </span>
+      </div>
+    </footer>
+
+    <script src="../assets/site.js" defer></script>
+  </body>
+</html>
