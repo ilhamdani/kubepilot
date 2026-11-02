@@ -39,6 +39,59 @@ npm run dist       # Windows NSIS installer in dist/
 
 Requires Node 22 or newer. `npm run dist` produces `KubePilot-<version>-x64-setup.exe`.
 
+## Build an installer
+
+Two platforms are configured: an NSIS installer for Windows and a DMG plus ZIP for macOS.
+
+### Windows
+
+```bash
+npm run dist          # dist/KubePilot-<version>-x64-setup.exe
+npm run package       # unpacked build in dist/win-unpacked, no installer
+```
+
+The installer is per-user, so it never asks for administrator rights.
+
+### macOS
+
+**This has to run on macOS.** electron-builder drives Apple's `hdiutil`, `codesign` and
+`iconutil`, and refuses to start a macOS target on any other host.
+
+```bash
+npm install
+npm run dist:mac        # Apple Silicon + Intel: a DMG and a ZIP for each
+npm run dist:mac:arm64  # Apple Silicon only
+npm run dist:mac:x64    # Intel only
+```
+
+Output lands in `dist/`:
+
+| File | For |
+| --- | --- |
+| `KubePilot-<version>-arm64.dmg` | Apple Silicon (M-series) |
+| `KubePilot-<version>-x64.dmg` | Intel Macs |
+| `KubePilot-<version>-<arch>.zip` | The same app, zipped — what auto-update consumes |
+
+The two architectures are built separately on purpose: a universal binary works everywhere
+but roughly doubles the download for people who only need one half of it. If you want one
+file anyway, `npx electron-builder --mac --universal` still works.
+
+Builds are unsigned and unnotarized unless Apple credentials are in the environment.
+electron-builder looks for `CSC_LINK` and `CSC_KEY_PASSWORD` (the Developer ID certificate)
+and, for notarization, either `APPLE_ID` + `APPLE_APP_SPECIFIC_PASSWORD` + `APPLE_TEAM_ID`
+or `APPLE_API_KEY` + `APPLE_API_KEY_ID` + `APPLE_API_ISSUER`. Nothing has to be changed in
+the config to turn either on, and with none of them set the build still succeeds — macOS
+Gatekeeper just asks the user to right-click → Open the first time.
+
+`.github/workflows/build-mac.yml` does all of this on a `macos-14` runner for both
+architectures and uploads the installers. It reads the same variables from repository
+secrets and skips signing when they are missing.
+
+Two helpers keep this maintainable from any OS: `npm run icon:icns` rebuilds
+`build/icon.icns` from `build/icon.png` without macOS tooling, and `npm run verify:mac`
+checks the whole macOS configuration (config, entitlements, icon container, workflow,
+scripts) and exits non-zero on a problem.
+
 ### Documentation site
 
 A static documentation site and landing page live in `site/`. Preview it locally:
@@ -93,8 +146,8 @@ Design notes:
 Early but functional. Working today: discovery, lists, watch, details, YAML apply, delete,
 scale, restart, logs, exec, metrics, port forwarding, and context-aware create templates.
 
-Not yet: Helm, CRD schema validation, RBAC-aware UI, multi-window, macOS/Linux packaging
-targets (the config is Windows-first right now), automated tests.
+Not yet: Helm, CRD schema validation, RBAC-aware UI, multi-window, Linux packaging
+targets, automated tests.
 
 ## Provenance
 

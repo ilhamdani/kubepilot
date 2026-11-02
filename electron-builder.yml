@@ -30,6 +30,41 @@ win:
         - x64
   artifactName: ${productName}-${version}-${arch}-setup.${ext}
 
+mac:
+  category: public.app-category.developer-tools
+  icon: build/icon.icns
+  darkModeSupport: true
+  # Hardened runtime is required for notarization, and Electron needs the JIT
+  # entitlements to launch at all under it. gatekeeperAssess stays off because
+  # the app is unsigned by default and there is nothing for Gatekeeper to assess.
+  hardenedRuntime: true
+  gatekeeperAssess: false
+  entitlements: build/entitlements.mac.plist
+  entitlementsInherit: build/entitlements.mac.plist
+  # Maps to LSMinimumSystemVersion. Electron 45 does not run below macOS 11.
+  minimumSystemVersion: '11.0'
+  extendInfo:
+    # Pick the discrete GPU on dual-GPU MacBook Pros instead of the integrated one.
+    NSSupportsAutomaticGraphicsSwitching: true
+  # Two single-arch builds rather than one universal binary: universal roughly
+  # doubles the download for no benefit outside a local single-file copy.
+  target:
+    - target: dmg
+      arch:
+        - arm64
+        - x64
+    - target: zip
+      arch:
+        - arm64
+        - x64
+  artifactName: ${productName}-${version}-${arch}.${ext}
+  # electron-builder 26 has no object form for `notarize`: it is a boolean that
+  # *disables* notarization when set to false. Left unset, notarization runs
+  # automatically whenever APPLE_ID + APPLE_APP_SPECIFIC_PASSWORD + APPLE_TEAM_ID
+  # (or APPLE_API_KEY + APPLE_API_KEY_ID + APPLE_API_ISSUER, or
+  # APPLE_KEYCHAIN + APPLE_KEYCHAIN_PROFILE) are in the environment, and is
+  # skipped with a warning when they are not. So: no key here, on purpose.
+
 nsis:
   oneClick: false
   perMachine: false

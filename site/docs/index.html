@@ -63,7 +63,7 @@
             <tr><th>Item</th><th>Needed for</th></tr>
           </thead>
           <tbody>
-            <tr><td>Windows 10/11 x64</td><td>The packaged installer</td></tr>
+            <tr><td>Windows 10/11 x64, or macOS 11+</td><td>The packaged installer</td></tr>
             <tr><td>Node 22+</td><td>Running from source</td></tr>
             <tr><td>A kubeconfig</td><td>Connecting clusters — <code>~/.kube/config</code> is read automatically</td></tr>
             <tr><td>Kubernetes 1.24+</td><td>Server-side apply, <code>metrics.k8s.io</code>, exec</td></tr>
@@ -71,6 +71,7 @@
         </table>
 
         <h2 id="install">Install the app</h2>
+        <h3>Windows</h3>
         <ol>
           <li>Download <code>KubePilot-0.1.0-x64-setup.exe</code> from the releases page.</li>
           <li>Run it. The install is per-user, so no administrator prompt is required.</li>
@@ -80,6 +81,28 @@
           The installer is unsigned, so SmartScreen will show a warning the first time. Choose
           <em>More info → Run anyway</em>, or build from source if you would rather not trust a
           binary.
+        </p>
+
+        <h3>macOS</h3>
+        <ol>
+          <li>
+            Download <code>KubePilot-0.1.0-arm64.dmg</code> on an Apple Silicon Mac, or
+            <code>KubePilot-0.1.0-x64.dmg</code> on an Intel one. <strong>Apple menu → About This
+            Mac</strong> says which chip you have.
+          </li>
+          <li>Open the disk image and drag <strong>KubePilot</strong> onto the Applications shortcut.</li>
+          <li>Eject the image, then launch KubePilot from Applications.</li>
+        </ol>
+        <p>
+          The macOS build is unsigned and not notarized, so Gatekeeper blocks the first launch
+          with <em>“Apple could not verify KubePilot is free of malware”</em>. Click <em>Done</em>,
+          then right-click the app in Applications and choose <em>Open → Open</em>. If macOS still
+          refuses, clear the quarantine flag and try again:
+        </p>
+        <pre><code>xattr -cr /Applications/KubePilot.app</code></pre>
+        <p>
+          This is the unsigned build talking, not the download. A signed and notarized build —
+          what CI produces once the Apple secrets are set — opens with a plain double-click.
         </p>
 
         <h2 id="source">Run from source</h2>
@@ -94,7 +117,9 @@ npm run dev</code></pre>
             <tr><td>npm run build</td><td>Compile main, preload and renderer into <code>out/</code></td></tr>
             <tr><td>npm run typecheck</td><td>Type-check the whole project</td></tr>
             <tr><td>npm run dist</td><td>Build the Windows installer into <code>dist/</code></td></tr>
+            <tr><td>npm run dist:mac</td><td>Build the macOS DMG and ZIP into <code>dist/</code> — macOS only</td></tr>
             <tr><td>npm run icon</td><td>Regenerate <code>build/icon.png</code></td></tr>
+            <tr><td>npm run icon:icns</td><td>Regenerate <code>build/icon.icns</code> from the PNG</td></tr>
           </tbody>
         </table>
 

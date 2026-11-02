@@ -166,9 +166,17 @@
               </td>
             </tr>
             <tr>
+              <td>macOS: “KubePilot is damaged” or “cannot be verified”</td>
+              <td>
+                Gatekeeper on an unsigned build. Right-click the app → <em>Open</em>, or run
+                <code>xattr -cr /Applications/KubePilot.app</code> to clear the quarantine flag.
+              </td>
+            </tr>
+            <tr>
               <td>Blank window after an update</td>
               <td>
-                Delete <code>%APPDATA%\KubePilot</code> to reset settings and cache, then relaunch.
+                Delete <code>%APPDATA%\KubePilot</code> (<code>~/Library/Application Support/KubePilot</code>
+                on macOS) to reset settings and cache, then relaunch.
               </td>
             </tr>
           </tbody>
@@ -180,7 +188,7 @@
           <li>No CRD schema validation in the YAML editor — it is YAML highlighting, not a schema.</li>
           <li>The UI does not hide actions your RBAC forbids; the API server returns the error.</li>
           <li>Single window, single instance.</li>
-          <li>Packaging is Windows-first. The Electron config is portable, but no macOS or Linux targets are configured.</li>
+          <li>Windows and macOS are packaged; Linux is not configured yet.</li>
           <li>
             Testing is a live-cluster suite rather than unit tests:
             <code>node tools/e2e-live.mjs</code> drives the running app over the DevTools protocol

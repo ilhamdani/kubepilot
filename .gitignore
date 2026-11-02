@@ -12,3 +12,5 @@ shot*.png
 .tmp-run*/
 # every throwaway Electron profile (--user-data-dir) used for testing
 .tmp-*/
+# electron-builder probe runs (--dir --config.directories.output=.probe-win)
+.probe-*/

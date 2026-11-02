@@ -1,0 +1,63 @@
+name: Build macOS installers
+
+# electron-builder refuses to build macOS targets anywhere but macOS, so the
+# .dmg and .zip are produced here rather than on a contributor's Linux or
+# Windows machine. Both architectures are built on an Apple Silicon runner,
+# which can cross-compile the Intel build.
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'v*'
+  pull_request:
+    paths:
+      - 'electron-builder.yml'
+      - 'build/**'
+      - '.github/workflows/build-mac.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  mac:
+    name: macOS ${{ matrix.arch }}
+    runs-on: macos-14
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [arm64, x64]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Compile
+        run: npm run build
+
+      # Signing and notarization are opt-in: electron-builder looks for these
+      # variables and simply skips both steps when they are absent, so a fork
+      # without secrets still produces a usable (unsigned) build.
+      - name: Package
+        run: npx electron-builder --mac --${{ matrix.arch }} --publish never
+        env:
+          CSC_LINK: ${{ secrets.CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+
+      - name: Upload installers
+        uses: actions/upload-artifact@v4
+        with:
+          name: kubepilot-macos-${{ matrix.arch }}
+          path: |
+            dist/*.dmg
+            dist/*.zip
+          if-no-files-found: error
+          retention-days: 14
