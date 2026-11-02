@@ -975,7 +975,7 @@ export class DemoBackend implements ClusterBackend {
     };
   }
 
-  exec(req: ExecRequest, handlers: ExecHandlers): ExecHandle {
+  async exec(req: ExecRequest, handlers: ExecHandlers): Promise<ExecHandle> {
     let buffer = '';
     const prompt = `\u001b[32mroot@${req.pod.slice(0, 24)}\u001b[0m:\u001b[34m/${req.container ?? 'app'}\u001b[0m# `;
 

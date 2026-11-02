@@ -10,3 +10,5 @@ shot*.png
 .DS_Store
 .tmp-edge*/
 .tmp-run*/
+# every throwaway Electron profile (--user-data-dir) used for testing
+.tmp-*/

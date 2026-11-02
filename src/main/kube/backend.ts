@@ -52,5 +52,9 @@ export interface ClusterBackend {
     onError?: (message: string) => void,
   ): () => void;
   logs(req: LogRequest, onChunk: (text: string) => void, onEnd: (err?: string) => void): () => void;
-  exec(req: ExecRequest, handlers: ExecHandlers): ExecHandle;
+  /**
+   * Rejects when the session cannot be opened at all — for example a distroless
+   * container with no shell — so the UI can explain why instead of hanging.
+   */
+  exec(req: ExecRequest, handlers: ExecHandlers): Promise<ExecHandle>;
 }

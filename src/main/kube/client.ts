@@ -64,6 +64,22 @@ export interface ExecHandlers {
   onClose: (code?: number) => void;
 }
 
+/** Shells to try, most common first. Distroless images have none of them. */
+const SHELL_CANDIDATES = ['/bin/sh', '/bin/bash', '/bin/ash', '/bin/zsh', '/usr/bin/sh', 'sh'];
+
+/** Errors runc raises when the requested binary is not in the image. */
+const MISSING_BINARY = /no such file or directory|executable file not found|not found/i;
+
+export const NO_SHELL_MESSAGE = [
+  'No shell found in this container.',
+  '',
+  `Tried: ${SHELL_CANDIDATES.join(', ')}`,
+  '',
+  'The image is most likely distroless or built FROM scratch, so there is',
+  'nothing to open an interactive terminal with. Logs, YAML and Events',
+  'still work for this pod.',
+].join('\n');
+
 export class KubeClient {
   readonly contextName: string;
   readonly server: string;
@@ -402,17 +418,93 @@ export class KubeClient {
     };
   }
 
+  /**
+   * Runs a short, non-interactive exec and reports whether the binary exists.
+   * The container runtime answers "no such file or directory" when it does not.
+   */
+  private probeBinary(req: ExecRequest, argv: string[]): Promise<boolean> {
+    return new Promise((resolve) => {
+      const base = this.server.replace(/^http/, 'ws');
+      const params = new URLSearchParams();
+      for (const arg of argv) params.append('command', arg);
+      params.set('stdout', '1');
+      params.set('stderr', '1');
+      if (req.container) params.set('container', req.container);
+      const url = `${base}/api/v1/namespaces/${encodeURIComponent(req.namespace)}/pods/${encodeURIComponent(
+        req.pod,
+      )}/exec?${params.toString()}`;
+
+      let settled = false;
+      const ws = new WebSocket(url, ['v5.channel.k8s.io', 'v4.channel.k8s.io'], {
+        headers: this.headers({ Accept: '*/*' }),
+        ca: this.auth.caData,
+        cert: this.auth.certData,
+        key: this.auth.keyData,
+        rejectUnauthorized: !this.auth.insecureSkipTlsVerify,
+        servername: this.auth.tlsServerName,
+        handshakeTimeout: 10_000,
+      } as any);
+
+      const finish = (ok: boolean) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        try {
+          ws.close();
+        } catch {
+          /* already closing */
+        }
+        resolve(ok);
+      };
+      const timer = setTimeout(() => finish(false), 6_000);
+
+      ws.on('message', (raw: Buffer) => {
+        if (!raw?.length || raw[0] !== 3) return; // channel 3 carries the status frame
+        const text = raw.subarray(1).toString('utf8').trim();
+        if (!text) return;
+        try {
+          const status = JSON.parse(text);
+          if (status.status === 'Success') return finish(true);
+          finish(!MISSING_BINARY.test(String(status.message ?? status.reason ?? text)));
+        } catch {
+          finish(!MISSING_BINARY.test(text));
+        }
+      });
+      ws.on('close', () => finish(true));
+      ws.on('error', () => finish(false));
+    });
+  }
+
+  /** First shell that actually exists in the container, or null. */
+  async resolveShell(req: ExecRequest): Promise<string | null> {
+    for (const shell of SHELL_CANDIDATES) {
+      if (await this.probeBinary(req, [shell, '-c', 'exit 0'])) return shell;
+    }
+    return null;
+  }
+
   /** Opens an interactive exec session using the WebSocket channel protocol. */
-  exec(req: ExecRequest, handlers: ExecHandlers): { write: (d: string) => void; resize: (c: number, r: number) => void; close: () => void } {
+  async exec(req: ExecRequest, handlers: ExecHandlers): Promise<{
+    write: (d: string) => void;
+    resize: (c: number, r: number) => void;
+    close: () => void;
+  }> {
+    // An explicit command wins; otherwise find a shell the image actually has.
+    let command = req.command?.length ? req.command : undefined;
+    if (!command) {
+      const shell = await this.resolveShell(req);
+      if (!shell) throw new KubeApiError(0, NO_SHELL_MESSAGE);
+      // `clear` is optional; `exec` replaces the wrapper so signals reach the shell.
+      command = [shell, '-c', `command -v clear >/dev/null 2>&1 && clear; exec ${shell}`];
+    }
+
     const base = this.server.replace(/^http/, 'ws');
     const params = new URLSearchParams();
-    // Fall back to a plain shell rather than crashing when no command is given.
-    const command = req.command?.length ? req.command : ['/bin/sh', '-c', 'clear; exec /bin/sh'];
     for (const c of command) params.append('command', c);
     params.set('stdin', '1');
     params.set('stdout', '1');
     params.set('stderr', '1');
-    params.set('tty', '1');
+    if (req.tty !== false) params.set('tty', '1');
     if (req.container) params.set('container', req.container);
     const url = `${base}/api/v1/namespaces/${encodeURIComponent(req.namespace)}/pods/${encodeURIComponent(
       req.pod,

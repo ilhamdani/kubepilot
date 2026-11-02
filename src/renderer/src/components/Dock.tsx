@@ -273,7 +273,8 @@ function TerminalView({ tab }: { tab: DockTab }) {
         namespace: tab.namespace,
         pod: tab.pod,
         container: tab.container,
-        command: ['/bin/sh', '-c', 'clear; exec /bin/sh'],
+        // Empty: the main process picks a shell the image actually has.
+        command: [],
         tty: true,
       })
       .then((id) => {
@@ -283,7 +284,12 @@ function TerminalView({ tab }: { tab: DockTab }) {
       })
       .catch((err: any) => {
         setStatus('closed');
-        term.write(`\x1b[31m${err?.message ?? 'Failed to start session'}\x1b[0m\r\n`);
+        // Electron wraps rejections as `Error invoking remote method 'x': Error: ...`
+        const message = String(err?.message ?? 'Failed to start session').replace(
+          /^Error invoking remote method '[^']+':\s*(Error:\s*)?/,
+          '',
+        );
+        for (const line of message.split('\n')) term.write(`\x1b[31m${line}\x1b[0m\r\n`);
       });
 
     const onData = term.onData((data) => {

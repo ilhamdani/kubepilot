@@ -192,10 +192,11 @@ export function registerIpc(registry: ClusterRegistry): void {
     return true;
   });
 
-  ipcMain.handle('exec:start', (event, req: ExecRequest) => {
+  ipcMain.handle('exec:start', async (event, req: ExecRequest) => {
     const id = `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
     const backend = registry.backend(req.clusterId);
-    const handle = backend.exec(req, {
+    // May reject (e.g. no shell in a distroless container); the renderer shows it.
+    const handle = await backend.exec(req, {
       onData: (stream, data) => {
         if (!event.sender.isDestroyed()) event.sender.send('kubepilot:exec-data', { sessionId: id, stream, data });
       },

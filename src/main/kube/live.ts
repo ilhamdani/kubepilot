@@ -79,7 +79,7 @@ export class LiveBackend implements ClusterBackend {
     return this.client.streamLogs(req, onChunk, onEnd);
   }
 
-  exec(req: ExecRequest, handlers: ExecHandlers): ExecHandle {
+  exec(req: ExecRequest, handlers: ExecHandlers): Promise<ExecHandle> {
     return this.client.exec(req, handlers);
   }
 }
