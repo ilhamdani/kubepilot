@@ -1,0 +1,10 @@
+node_modules/
+out/
+dist/
+release*/
+installer/
+.cache/
+.tmp-userdata/
+*.log
+shot*.png
+.DS_Store

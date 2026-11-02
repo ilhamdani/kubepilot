@@ -1,0 +1,40 @@
+appId: io.kubepilot.app
+productName: KubePilot
+copyright: Copyright © 2026 KubePilot contributors
+
+directories:
+  output: dist
+  buildResources: build
+
+# Only the compiled bundles ship; sources, tooling and screenshots stay out.
+files:
+  - out/**/*
+  - package.json
+  - '!**/*.map'
+  - '!**/{.eslintrc,.editorconfig,tsconfig.json,electron.vite.config.ts}'
+  - '!tools/**'
+  - '!shot*.png'
+  - '!dist/**'
+
+asar: true
+# No native modules are used, so skip the rebuild pass entirely.
+npmRebuild: false
+electronDownload:
+  cache: .cache/electron
+
+win:
+  icon: build/icon.png
+  target:
+    - target: nsis
+      arch:
+        - x64
+  artifactName: ${productName}-${version}-${arch}-setup.${ext}
+
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: KubePilot
+  deleteAppDataOnUninstall: false

@@ -1,0 +1,283 @@
+/*
+ * Design tokens.
+ *
+ * KubePilot ships its own teal identity. The greys, spacing and status colours
+ * follow the conventions established by Lens (whose palette lives in its
+ * open-source theme package) so people coming from another Kubernetes IDE feel
+ * at home, but the accent, brand mark and icon are KubePilot's own.
+ */
+
+:root {
+  --unit: 8px;
+  --padding: 8px;
+  --margin: 8px;
+
+  --font-ui: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, 'Ubuntu', 'Helvetica Neue',
+    sans-serif;
+  --font-mono: 'SF Mono', 'Cascadia Mono', Consolas, 'Ubuntu Mono', 'Liberation Mono', 'DejaVu Sans Mono',
+    monospace;
+
+  --font-size: 13px;
+  --font-size-small: 12px;
+  --radius: 4px;
+
+  --navigator-width: 248px;
+  --rail-width: 64px;
+  --tabs-height: 40px;
+  --statusbar-height: 26px;
+  --toolbar-height: 44px;
+  --row-height: 32px;
+
+  /* KubePilot brand: a helmsman's teal, deliberately not the blue of other IDEs. */
+  --brand: #14b8a6;
+  --brand2: #0e7490;
+  --brandGlow: rgba(20, 184, 166, 0.28);
+}
+
+[data-theme='kubepilot-dark'] {
+  color-scheme: dark;
+
+  --blue: #14b8a6;
+  --magenta: #c93dce;
+  --golden: #ffc63d;
+  --half-gray: #87909c80;
+
+  --textColorPrimary: #aaacae;
+  --textColorSecondary: #a0a0a0;
+  --textColorTertiary: #aaacae;
+  --textColorAccent: #f1f3f5;
+  --textColorDimmed: #8e92978c;
+
+  --mainBackground: #181a1c;
+  --backgroundPrimary: #1f2123;
+  --backgroundSecondary: #181a1c;
+  --borderColor: #2d2f31;
+  --borderFaintColor: #373a3e;
+  --contentColor: #262b2f;
+
+  --itemListToolbarBackground: #1f2123;
+  --itemListBackground: #181a1c;
+  --layoutBackground: #1f2123;
+  --layoutTabsBackground: #252729;
+  --layoutTabsActiveColor: #ffffff;
+  --layoutTabsLineColor: #87909c80;
+  --layoutBorderColor: #1f2124;
+
+  --sidebarBackground: #26292b;
+  --sidebarLogoBackground: #414448;
+  --sidebarActiveColor: #ffffff;
+  --sidebarSubmenuActiveColor: #ffffff;
+  --sidebarItemHoverBackground: #3a3e44;
+
+  --badgeBackgroundColor: #ffba44;
+  --buttonPrimaryBackground: #14b8a6;
+  --buttonDefaultBackground: #414448;
+  --buttonLightBackground: #f1f1f1;
+  --buttonAccentBackground: #e85555;
+  --buttonDisabledBackground: #808080;
+
+  --tableBgcStripe: #2a2d33;
+  --tableBgcSelected: #37383e;
+  --tableHeaderBackground: #1f2123;
+  --tableSelectedRowColor: #ffffff;
+
+  --colorSuccess: #43a047;
+  --colorOk: #4caf50;
+  --colorInfo: #14b8a6;
+  --colorError: #ce3933;
+  --colorSoftError: #e85555;
+  --colorWarning: #ff9800;
+  --colorNotice: #ffd572;
+  --colorVague: #26292b;
+  --colorTerminated: #4c5053;
+
+  --dockHeadBackground: #181a1c;
+  --dockInfoBackground: #1f2123;
+  --linkColor: #2dd4bf;
+  --linkHoverColor: #5eead4;
+
+  --logsBackground: #000000;
+  --logsForeground: #ffffff;
+  --logRowHoverBackground: #35373a;
+
+  --clusterMenuBackground: #252729;
+  --clusterMenuBorderColor: #252729;
+  --clusterMenuCellBackground: #1f2123;
+  --clusterMenuCellOutline: #ffffff66;
+  --clusterSettingsBackground: #1a1c1e;
+
+  --boxShadow: #0000003a;
+  --iconActiveColor: #ffffff;
+  --iconActiveBackground: #ffffff18;
+  --filterAreaBackground: #23272b;
+
+  --chartLiveBarBackground: #00000033;
+  --chartStripesColor: #ffffff08;
+  --chartCapacityColor: #4c545f;
+  --pieChartDefaultColor: #30353a;
+
+  --inputOptionHoverColor: #37383e;
+  --inputOptionSelectedColor: #404249;
+  --inputControlBackground: #181a1c;
+  --inputControlBorder: #414348;
+  --inputControlHoverBorder: #474a4f;
+
+  --lineProgressBackground: #414448;
+  --radioActiveBackground: #26292b;
+  --menuActiveBackground: #37383e;
+  --menuSelectedOptionBgc: #26292b;
+
+  --modalHeaderBg: #1f2123;
+  --modalHeaderTextColor: #ffffff;
+  --modalDividerColor: #2d2f31;
+  --modalContentBg: #26292b;
+  --modalFooterBg: #1f2123;
+  --modalOverlay: #000000b3;
+  --modalTextColor: #aaacae;
+
+  --canvasBackground: #24292e;
+  --scrollBarColor: #414349;
+  --scrollBarHoverColor: #64656a;
+
+  --settingsBackground: #262b2e;
+  --settingsColor: #aaacae;
+  --navSelectedBackground: #262b2e;
+  --navHoverColor: #dcddde;
+  --hrColor: #ffffff0f;
+  --tooltipBackground: #18191c;
+  --columnResizerColor: #414348;
+
+  --grey100: #181a1c;
+  --grey80: #1f2123;
+  --grey70: #26292b;
+  --grey60: #2d2f31;
+  --grey40: #26292b;
+  --grey30: #414348;
+  --grey25: #616365;
+  --grey20: #aaacae;
+  --grey10: #f1f3f5;
+
+  --successTint: rgba(76, 175, 80, 0.1);
+  --warningTint: rgba(255, 152, 0, 0.1);
+  --criticalTint: rgba(206, 57, 51, 0.1);
+  --accentTint: rgba(20, 184, 166, 0.16);
+}
+
+[data-theme='kubepilot-light'] {
+  color-scheme: light;
+
+  --blue: #0e9488;
+  --textColorPrimary: #555555;
+  --textColorSecondary: #6b6b6b;
+  --textColorTertiary: #555555;
+  --textColorAccent: #4b4b4b;
+  --textColorDimmed: #8a8a86;
+
+  --mainBackground: #ededed;
+  --backgroundPrimary: #f8f8f8;
+  --backgroundSecondary: #ededed;
+  --borderColor: #c3c3c3;
+  --borderFaintColor: #d8d8d8;
+  --contentColor: #ffffff;
+
+  --itemListToolbarBackground: #f8f8f8;
+  --itemListBackground: #ffffff;
+  --layoutBackground: #f8f8f8;
+  --layoutTabsBackground: #e8e8e8;
+  --layoutTabsActiveColor: #1a1a1a;
+  --layoutTabsLineColor: #87909c;
+  --layoutBorderColor: #dcdcdc;
+
+  --sidebarBackground: #f2f2f2;
+  --sidebarLogoBackground: #dcdcdc;
+  --sidebarActiveColor: #1a1a1a;
+  --sidebarSubmenuActiveColor: #1a1a1a;
+  --sidebarItemHoverBackground: #e3e3e3;
+
+  --badgeBackgroundColor: #ffba44;
+  --buttonPrimaryBackground: #0e9488;
+  --buttonDefaultBackground: #e0e0e0;
+  --buttonDisabledBackground: #b0b0b0;
+
+  --tableBgcStripe: #fafafa;
+  --tableBgcSelected: #dff3f0;
+  --tableHeaderBackground: #f2f2f2;
+  --tableSelectedRowColor: #1a1a1a;
+
+  --colorOk: #4caf50;
+  --colorInfo: #0e9488;
+  --colorError: #ce3933;
+  --colorSoftError: #e85555;
+  --colorWarning: #ff9800;
+  --colorVague: #e0e0e0;
+  --colorTerminated: #b6b6b6;
+
+  --dockHeadBackground: #ededed;
+  --dockInfoBackground: #f8f8f8;
+  --linkColor: #0e9488;
+
+  --logsBackground: #ffffff;
+  --logsForeground: #1a1a1a;
+  --logRowHoverBackground: #f0f0f0;
+
+  --clusterMenuBackground: #ffffff;
+  --clusterMenuBorderColor: #dcdcdc;
+  --clusterMenuCellBackground: #eaeaea;
+  --clusterMenuCellOutline: #00000026;
+  --clusterSettingsBackground: #f0f0f0;
+  --sidebarLogoBackground: #e0e0e0;
+  --iconActiveColor: #1a1a1a;
+  --iconActiveBackground: #00000012;
+  --lineProgressBackground: #dcdcdc;
+  --radioActiveBackground: #e8e8e8;
+  --menuSelectedOptionBgc: #e8e8e8;
+  --settingsBackground: #f4f4f4;
+  --settingsColor: #555555;
+  --navSelectedBackground: #e8e8e8;
+  --navHoverColor: #1a1a1a;
+  --chartCapacityColor: #c3c3c3;
+  --pieChartDefaultColor: #e0e0e0;
+  --chartStripesColor: #00000008;
+  --chartLiveBarBackground: #00000012;
+  --badgeBackgroundColor: #ffba44;
+  --tableSelectedRowColor: #1a1a1a;
+  --helmDescriptionHr: #dcdcdc;
+  --modalAccentColor: #1a1a1a;
+  --modalSubtleHeaderColor: #6b6b6b;
+  --boxShadow: #0000001f;
+
+  --filterAreaBackground: #f2f2f2;
+  --inputControlBackground: #ffffff;
+  --inputControlBorder: #c3c3c3;
+  --inputControlHoverBorder: #a8a8a8;
+  --menuActiveBackground: #e8e8e8;
+  --modalHeaderBg: #f8f8f8;
+  --modalHeaderTextColor: #1a1a1a;
+  --modalDividerColor: #dcdcdc;
+  --modalContentBg: #ffffff;
+  --modalFooterBg: #f8f8f8;
+  --modalOverlay: #0000004d;
+  --modalTextColor: #555555;
+
+  --canvasBackground: #ffffff;
+  --scrollBarColor: #c3c3c3;
+  --scrollBarHoverColor: #9a9a9a;
+  --hrColor: #00000014;
+  --tooltipBackground: #2b2b2b;
+  --columnResizerColor: #c3c3c3;
+
+  --grey100: #ededed;
+  --grey80: #f8f8f8;
+  --grey70: #e0e0e0;
+  --grey60: #c3c3c3;
+  --grey40: #c9c6c1;
+  --grey30: #bebeb7;
+  --grey25: #8a8a86;
+  --grey20: #555555;
+  --grey10: #4b4b4b;
+
+  --successTint: rgba(76, 175, 80, 0.14);
+  --warningTint: rgba(255, 152, 0, 0.14);
+  --criticalTint: rgba(206, 57, 51, 0.12);
+  --accentTint: rgba(14, 148, 136, 0.14);
+}
