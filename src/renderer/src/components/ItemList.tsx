@@ -9,6 +9,7 @@ import { ContextMenu, Modal, type MenuItem } from './Overlays';
 import { ResourceIcon, SearchIcon, StatusBrick } from './Icons';
 
 interface Props {
+  tabId: string;
   clusterId: string;
   resource: ResourceTabRef;
 }
@@ -41,19 +42,28 @@ const FALLBACK_COLUMNS: ColumnDef[] = [
   },
 ];
 
-export function ItemList({ clusterId, resource }: Props) {
+export function ItemList({ tabId, clusterId, resource }: Props) {
   const state = useApp((s) => s.states[clusterId]);
   const namespace = useApp((s) => s.settings.namespaceByCluster[clusterId] ?? 'all');
   const setNamespace = useApp((s) => s.setNamespace);
+  const setListQuery = useApp((s) => s.setListQuery);
   const metrics = useApp((s) => s.metrics);
   const openDetails = useApp((s) => s.openDetails);
+  const openSplitTab = useApp((s) => s.openSplitTab);
   const openLogs = useApp((s) => s.openLogs);
   const openTerminal = useApp((s) => s.openTerminal);
   const toast = useApp((s) => s.toast);
   const hotbar = useApp((s) => s.settings.hotbar);
   const toggleHotbar = useApp((s) => s.toggleHotbar);
 
-  const [query, setQuery] = useState('');
+  // Keyed by tab id, so this component remounts on every tab switch; the
+  // filter text is kept on the tab or it would reset on the way back.
+  const [query, setQuery] = useState(
+    () => useApp.getState().tabs.find((tab) => tab.id === tabId)?.query ?? '',
+  );
+  const queryRef = useRef(query);
+  queryRef.current = query;
+  useEffect(() => () => setListQuery(tabId, queryRef.current), [tabId, setListQuery]);
   const [sort, setSort] = useState<SortState>({ columnId: 'name', direction: 'asc' });
   const [selected, setSelected] = useState<string>();
   const [menu, setMenu] = useState<{ x: number; y: number; object: KubeObject } | null>(null);
@@ -152,6 +162,11 @@ export function ItemList({ clusterId, resource }: Props) {
           openDetails(clusterId, refOf(object), resource.id);
           useApp.getState().setDetailsTab('yaml');
         },
+      },
+      {
+        id: 'compare',
+        label: 'Compare with…',
+        onSelect: () => openSplitTab(clusterId, refOf(object)),
       },
       { id: 'sep1', label: '', separator: true },
       ...(isPod

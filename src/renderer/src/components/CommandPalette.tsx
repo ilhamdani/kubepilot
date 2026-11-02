@@ -22,6 +22,7 @@ export function CommandPalette() {
   const openResourceTab = useApp((s) => s.openResourceTab);
   const openOverviewTab = useApp((s) => s.openOverviewTab);
   const openCreateTab = useApp((s) => s.openCreateTab);
+  const openSplitTab = useApp((s) => s.openSplitTab);
   const openSettingsTab = useApp((s) => s.openSettingsTab);
   const activateTab = useApp((s) => s.activateTab);
   const setActiveCluster = useApp((s) => s.setActiveCluster);
@@ -107,6 +108,13 @@ export function CommandPalette() {
         section: 'Actions',
         run: () => openCreateTab(activeClusterId),
       });
+      list.push({
+        id: 'action:compare',
+        label: 'Compare YAML',
+        hint: 'side by side',
+        section: 'Actions',
+        run: () => openSplitTab(activeClusterId),
+      });
     }
     list.push({
       id: 'action:settings',
@@ -116,7 +124,7 @@ export function CommandPalette() {
     });
 
     return list;
-  }, [clusters, activeClusterId, activeResource, tabs, openResourceTab, openOverviewTab, openCreateTab, openSettingsTab, activateTab, setActiveCluster]);
+  }, [clusters, activeClusterId, activeResource, tabs, openResourceTab, openOverviewTab, openCreateTab, openSplitTab, openSettingsTab, activateTab, setActiveCluster]);
 
   const filtered = useMemo(() => {
     const needle = query.trim().toLowerCase();

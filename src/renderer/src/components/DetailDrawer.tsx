@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState, type MouseEvent as ReactMouseEvent, type ReactNode } from 'react';
-import { dump } from 'js-yaml';
 import type { KubeObject, ResourceQuery, ResourceRef } from '@shared/types';
 import { api } from '../api';
 import { findKindById } from '../lib/catalog';
 import { formatAge, formatAgeLong, formatDateTime, formatMemory, statusOf } from '../lib/format';
+import { dumpObject } from '../lib/yaml';
 import { useKubeList } from '../state/lists';
 import { useApp } from '../state/store';
 import { ResourceIcon, StatusBrick } from './Icons';
@@ -16,6 +16,7 @@ export function DetailDrawer() {
   const setDetailsTab = useApp((s) => s.setDetailsTab);
   const openLogs = useApp((s) => s.openLogs);
   const openTerminal = useApp((s) => s.openTerminal);
+  const openSplitTab = useApp((s) => s.openSplitTab);
   const toast = useApp((s) => s.toast);
 
   const [object, setObject] = useState<KubeObject | null>(null);
@@ -40,7 +41,7 @@ export function DetailDrawer() {
       .then((result) => {
         if (!active) return;
         setObject(result);
-        setDraft(dump(result, { noRefs: true, lineWidth: 120 }));
+        setDraft(dumpObject(result));
       })
       .catch((err: any) => active && setError(err?.message ?? 'Failed to load object'))
       .finally(() => active && setLoading(false));
@@ -95,7 +96,7 @@ export function DetailDrawer() {
       setDirty(false);
       const fresh = await api.resources.get(ref);
       setObject(fresh);
-      setDraft(dump(fresh, { noRefs: true, lineWidth: 120 }));
+      setDraft(dumpObject(fresh));
     } catch (err: any) {
       toast(err?.message ?? 'Apply failed', 'error');
     }
@@ -244,11 +245,18 @@ export function DetailDrawer() {
               className="btn btn--ghost"
               disabled={!dirty}
               onClick={() => {
-                setDraft(dump(object, { noRefs: true, lineWidth: 120 }));
+                setDraft(dumpObject(object));
                 setDirty(false);
               }}
             >
               Revert
+            </button>
+            <button
+              className="btn btn--ghost"
+              onClick={() => openSplitTab(details.clusterId, ref)}
+              title="Compare this object's YAML with another object"
+            >
+              Compare
             </button>
             <button className="btn btn--primary" disabled={!dirty} onClick={() => void save()}>
               Apply

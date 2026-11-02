@@ -1,44 +1,6 @@
 import { useEffect, useRef } from 'react';
 import * as monaco from 'monaco-editor';
-import editorWorker from 'monaco-editor/esm/vs/editor/editor.worker?worker';
-
-// Monaco needs an explicit worker factory under Vite.
-(self as any).MonacoEnvironment = {
-  getWorker: () => new editorWorker(),
-};
-
-const THEME = 'kubepilot-yaml';
-
-let themeRegistered = false;
-
-function registerTheme() {
-  if (themeRegistered) return;
-  themeRegistered = true;
-  monaco.editor.defineTheme(THEME, {
-    base: 'vs-dark',
-    inherit: true,
-    rules: [
-      { token: 'string.yaml', foreground: '9ecb7a' },
-      { token: 'number.yaml', foreground: 'd9a441' },
-      { token: 'keyword.yaml', foreground: '3d90ce' },
-      { token: 'comment.yaml', foreground: '6b7781', fontStyle: 'italic' },
-      { token: 'type.yaml', foreground: 'c93dce' },
-    ],
-    colors: {
-      'editor.background': '#262b2f',
-      'editor.foreground': '#f1f3f5',
-      'editorLineNumber.foreground': '#5c666e',
-      'editorLineNumber.activeForeground': '#aaacae',
-      'editor.lineHighlightBackground': '#ffffff08',
-      'editor.selectionBackground': '#3d90ce55',
-      'editorCursor.foreground': '#3d90ce',
-      'editorIndentGuide.background1': '#ffffff12',
-      'editorWidget.background': '#1f2123',
-      'editorGutter.background': '#262b2f',
-      'scrollbarSlider.background': '#41434980',
-    },
-  });
-}
+import { YAML_THEME, ensureMonaco } from '../lib/monaco';
 
 interface Props {
   value: string;
@@ -51,14 +13,17 @@ export function YamlEditor({ value, onChange, readOnly }: Props) {
   const editorRef = useRef<monaco.editor.IStandaloneCodeEditor | null>(null);
   const onChangeRef = useRef(onChange);
   onChangeRef.current = onChange;
+  // setValue() fires onDidChangeModelContent too; without this guard a refresh
+  // from the cluster would mark the document dirty again right after saving.
+  const syncingRef = useRef(false);
 
   useEffect(() => {
     if (!hostRef.current) return;
-    registerTheme();
+    ensureMonaco();
     const editor = monaco.editor.create(hostRef.current, {
       value,
       language: 'yaml',
-      theme: THEME,
+      theme: YAML_THEME,
       readOnly,
       automaticLayout: true,
       minimap: { enabled: false },
@@ -76,6 +41,7 @@ export function YamlEditor({ value, onChange, readOnly }: Props) {
     });
     editorRef.current = editor;
     const subscription = editor.onDidChangeModelContent(() => {
+      if (syncingRef.current) return;
       onChangeRef.current?.(editor.getValue());
     });
     return () => {
@@ -89,7 +55,10 @@ export function YamlEditor({ value, onChange, readOnly }: Props) {
   useEffect(() => {
     const editor = editorRef.current;
     if (!editor) return;
-    if (editor.getValue() !== value) editor.setValue(value);
+    if (editor.getValue() === value) return;
+    syncingRef.current = true;
+    editor.setValue(value);
+    syncingRef.current = false;
   }, [value]);
 
   useEffect(() => {

@@ -7,6 +7,7 @@ import { ItemList } from './components/ItemList';
 import { Overview } from './components/Overview';
 import { CreateResource } from './components/CreateResource';
 import { Settings } from './components/Settings';
+import { SplitView } from './components/SplitView';
 import { DetailDrawer } from './components/DetailDrawer';
 import { Dock } from './components/Dock';
 import { StatusBar } from './components/StatusBar';
@@ -141,17 +142,28 @@ export function App() {
             </div>
           )}
 
+          {/* Each tab owns its view: without the key React reuses one instance
+              for every tab of the same kind, leaking one tab's state into the
+              next (two create tabs showing the same YAML, two split tabs
+              sharing a selection). */}
           {activeTab?.kind === 'overview' && activeState?.status === 'connected' && (
-            <Overview clusterId={activeTab.clusterId} state={activeState} />
+            <Overview key={activeTab.id} clusterId={activeTab.clusterId} state={activeState} />
           )}
 
           {activeTab?.kind === 'resource' && activeTab.resource && (
-            <ItemList clusterId={activeTab.clusterId} resource={activeTab.resource} />
+            <ItemList
+              key={activeTab.id}
+              tabId={activeTab.id}
+              clusterId={activeTab.clusterId}
+              resource={activeTab.resource}
+            />
           )}
 
-          {activeTab?.kind === 'create' && <CreateResource tab={activeTab} />}
+          {activeTab?.kind === 'create' && <CreateResource key={activeTab.id} tab={activeTab} />}
 
-          {activeTab?.kind === 'settings' && <Settings />}
+          {activeTab?.kind === 'split' && <SplitView key={activeTab.id} tab={activeTab} />}
+
+          {activeTab?.kind === 'settings' && <Settings key={activeTab.id} />}
 
           {!activeClusterId && (
             <div className="welcome">

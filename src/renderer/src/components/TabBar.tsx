@@ -53,6 +53,12 @@ export function TabBar() {
               <path d="M8 2v1.4M8 12.6V14M2 8h1.4M12.6 8H14M3.8 3.8l1 1M11.2 11.2l1 1M12.2 3.8l-1 1M4.8 11.2l-1 1" strokeLinecap="round" />
             </svg>
           )}
+          {tab.kind === 'split' && (
+            <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="var(--blue)" strokeWidth="1.4">
+              <rect x="2" y="3" width="5" height="10" rx="1" />
+              <rect x="9" y="3" width="5" height="10" rx="1" />
+            </svg>
+          )}
           <span className="tab-title">{tab.title}</span>
           <button
             className="tab-close"

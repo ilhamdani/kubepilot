@@ -181,7 +181,13 @@
           <li>The UI does not hide actions your RBAC forbids; the API server returns the error.</li>
           <li>Single window, single instance.</li>
           <li>Packaging is Windows-first. The Electron config is portable, but no macOS or Linux targets are configured.</li>
-          <li>No automated test suite yet.</li>
+          <li>
+            Testing is a live-cluster suite rather than unit tests:
+            <code>node tools/e2e-live.mjs</code> drives the running app over the DevTools protocol
+            and exercises 30 surfaces (connect, discovery, CRUD, watch, logs, exec, port-forward,
+            metrics). It needs a reachable cluster and a launch with
+            <code>--remote-debugging-port=9222</code>.
+          </li>
         </ul>
 
         <h2 id="license">License</h2>

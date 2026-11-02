@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { api } from '../api';
 import { CATALOG } from '../lib/catalog';
 import { defaultTemplate, isCreateable, templateFor, type CreateTemplate, type TemplateSource } from '../lib/templates';
@@ -24,12 +24,20 @@ export function CreateResource({ tab }: { tab: Tab }) {
   const toast = useApp((s) => s.toast);
   const closeTab = useApp((s) => s.closeTab);
   const setCreateTemplate = useApp((s) => s.setCreateTemplate);
+  const setCreateDraft = useApp((s) => s.setCreateDraft);
 
   const [template, setTemplate] = useState<CreateTemplate>(
     () => tab.create ?? defaultTemplate(namespace === 'all' ? undefined : namespace),
   );
-  const [value, setValue] = useState(template.yaml);
+  // The view is keyed by tab id, so a tab switch unmounts it; the draft lives
+  // on the tab itself or it would be lost on the way back. An empty string is
+  // a real draft — only `undefined` means "no draft, use the template".
+  const [value, setValue] = useState(tab.createDraft !== undefined ? tab.createDraft : template.yaml);
   const [busy, setBusy] = useState(false);
+
+  const valueRef = useRef(value);
+  valueRef.current = value;
+  useEffect(() => () => setCreateDraft(tab.id, valueRef.current), [tab.id, setCreateDraft]);
 
   /** Namespace to scaffold into: the filter, or the context default. */
   const targetNamespace = namespace === 'all' ? state?.cluster.namespace : namespace;
@@ -85,6 +93,9 @@ export function CreateResource({ tab }: { tab: Tab }) {
     setTemplate(next);
     setValue(next.yaml);
     setCreateTemplate(tab.id, next);
+    // Drop the old draft, otherwise coming back to this tab would restore the
+    // previous document instead of the newly picked template.
+    setCreateDraft(tab.id, undefined);
   };
 
   const apply = async () => {

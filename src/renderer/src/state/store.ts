@@ -21,7 +21,7 @@ export interface ResourceTabRef {
   label: string;
 }
 
-export type TabKind = 'overview' | 'resource' | 'create' | 'settings';
+export type TabKind = 'overview' | 'resource' | 'create' | 'settings' | 'split';
 
 export interface Tab {
   id: string;
@@ -31,6 +31,12 @@ export interface Tab {
   resource?: ResourceTabRef;
   /** Set on `create` tabs: the scaffold the `+` button opened with. */
   create?: CreateTemplate;
+  /** Unsaved YAML of a `create` tab, kept across tab switches. */
+  createDraft?: string;
+  /** Set on `resource` tabs: the current filter text, kept across tab switches. */
+  query?: string;
+  /** Set on `split` tabs: the objects currently compared, one per side. */
+  split?: { left?: ResourceRef; right?: ResourceRef };
 }
 
 export interface DetailsTarget {
@@ -101,7 +107,24 @@ interface AppStore {
   openCreateTab: (clusterId: string, resource?: ResourceTabRef) => void;
   /** Swaps the scaffold of an open create tab (kind picker). */
   setCreateTemplate: (tabId: string, template: CreateTemplate) => void;
+  /**
+   * Stores the unsaved YAML of a create tab so switching tabs does not throw
+   * the draft away. `undefined` drops the draft (the tab falls back to its
+   * template); `''` is a real draft — the user emptied the document.
+   * A no-op once the tab is gone, which is what makes closing a tab drop its
+   * draft with it.
+   */
+  setCreateDraft: (tabId: string, yaml?: string) => void;
+  /** Same idea for the resource list's filter text. */
+  setListQuery: (tabId: string, query: string) => void;
   openSettingsTab: () => void;
+  /**
+   * Opens a side-by-side YAML comparison. Either side may be empty, and the
+   * two refs may point at different clusters.
+   */
+  openSplitTab: (clusterId: string, left?: ResourceRef, right?: ResourceRef) => void;
+  /** Remembers what one side of a `split` tab shows, so switching tabs keeps it. */
+  setSplitSide: (tabId: string, side: 'left' | 'right', ref?: ResourceRef) => void;
   activateTab: (tabId: string) => void;
   closeTab: (tabId: string) => void;
 
@@ -183,7 +206,10 @@ export const useApp = create<AppStore>((set, get) => ({
     set((prev) => ({ states: { ...prev.states, [clusterId]: state } }));
     if (state.status === 'connected') {
       const existing = get().tabs.filter((t) => t.clusterId === clusterId);
-      if (!existing.length) {
+      // Only the cluster the user is looking at gets a landing tab; a
+      // background connect (e.g. the second side of a YAML comparison) must
+      // not yank the active tab away from what is on screen.
+      if (!existing.length && get().activeClusterId === clusterId) {
         get().openOverviewTab(clusterId);
       }
       await get().refreshMetrics();
@@ -269,6 +295,23 @@ export const useApp = create<AppStore>((set, get) => ({
     }));
   },
 
+  setCreateDraft(tabId, yaml) {
+    set((prev) => ({
+      tabs: prev.tabs.map((t) => {
+        if (t.id !== tabId || t.kind !== 'create') return t;
+        const next = { ...t, createDraft: yaml };
+        if (yaml === undefined) delete next.createDraft;
+        return next;
+      }),
+    }));
+  },
+
+  setListQuery(tabId, query) {
+    set((prev) => ({
+      tabs: prev.tabs.map((t) => (t.id === tabId && t.kind === 'resource' ? { ...t, query } : t)),
+    }));
+  },
+
   openSettingsTab() {
     const existing = get().tabs.find((t) => t.kind === 'settings');
     if (existing) {
@@ -277,6 +320,27 @@ export const useApp = create<AppStore>((set, get) => ({
     }
     const tab: Tab = { id: uid(), clusterId: get().activeClusterId ?? '', kind: 'settings', title: 'Preferences' };
     set((prev) => ({ tabs: [...prev.tabs, tab], activeTabId: tab.id }));
+  },
+
+  openSplitTab(clusterId, left, right) {
+    const tab: Tab = {
+      id: uid(),
+      clusterId,
+      kind: 'split',
+      title: 'Compare YAML',
+      split: { left, right },
+    };
+    set((prev) => ({ tabs: [...prev.tabs, tab], activeTabId: tab.id }));
+  },
+
+  setSplitSide(tabId, side, ref) {
+    set((prev) => ({
+      tabs: prev.tabs.map((tab) =>
+        tab.id === tabId && tab.kind === 'split'
+          ? { ...tab, split: { ...tab.split, [side]: ref } }
+          : tab,
+      ),
+    }));
   },
 
   activateTab(tabId) {

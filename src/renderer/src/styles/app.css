@@ -1570,6 +1570,104 @@ textarea:focus {
   background: var(--colorWarning);
 }
 
+/* ------------------------------------------------------- split YAML diff */
+
+.split-view {
+  background: var(--canvasBackground);
+}
+
+.split-summary {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 60%;
+}
+
+.split-head {
+  display: flex;
+  flex: 0 0 auto;
+  background: var(--itemListToolbarBackground);
+  border-bottom: 1px solid var(--borderColor);
+}
+
+.split-pane {
+  flex: 1 1 50%;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 12px;
+}
+
+.split-pane + .split-pane {
+  border-left: 1px solid var(--borderColor);
+}
+
+.split-pane-controls {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.split-pane-controls .ns-select {
+  flex: 1 1 110px;
+  min-width: 0;
+  max-width: none;
+}
+
+.split-pane-caption {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  font-size: 11px;
+  color: var(--textColorSecondary);
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.split-pane-cluster {
+  color: var(--textColorAccent);
+  font-weight: 600;
+}
+
+.split-pane-target {
+  font-family: var(--font-mono);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.split-pane-error {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  font-size: 11px;
+  color: var(--colorError);
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.split-pane-error-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.split-pane-retry {
+  flex: 0 0 auto;
+  height: 20px;
+  padding: 0 8px;
+  font-size: 11px;
+  color: var(--textColorAccent);
+}
+
+.diff-host {
+  flex: 1;
+  min-height: 0;
+  background: var(--canvasBackground);
+}
+
 /* --------------------------------------------------------- misc bits */
 
 .hint {

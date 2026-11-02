@@ -64,6 +64,36 @@ export interface ExecHandlers {
   onClose: (code?: number) => void;
 }
 
+/**
+ * Metadata the API server owns. Sending any of it back in an apply patch is
+ * rejected ("metadata.managedFields must be nil"), and `status` lives on a
+ * subresource so it must not be part of the patch either.
+ */
+const SERVER_MANAGED_METADATA = [
+  'managedFields',
+  'resourceVersion',
+  'uid',
+  'creationTimestamp',
+  'generation',
+  'selfLink',
+  'deletionTimestamp',
+  'deletionGracePeriodSeconds',
+];
+
+/**
+ * Returns a copy of `manifest` that is safe to send as an apply patch. The
+ * editor dumps whole live objects, so callers cannot be trusted to strip the
+ * server-managed fields themselves; the caller's object is never mutated.
+ */
+export function sanitizeForApply(manifest: KubeObject): KubeObject {
+  const clone: KubeObject = JSON.parse(JSON.stringify(manifest ?? {}));
+  if (clone.metadata && typeof clone.metadata === 'object') {
+    for (const key of SERVER_MANAGED_METADATA) delete clone.metadata[key];
+  }
+  delete clone.status;
+  return clone;
+}
+
 /** Shells to try, most common first. Distroless images have none of them. */
 const SHELL_CANDIDATES = ['/bin/sh', '/bin/bash', '/bin/ash', '/bin/zsh', '/usr/bin/sh', 'sh'];
 
@@ -276,7 +306,7 @@ export class KubeClient {
       ? (manifest.metadata?.namespace ?? this.namespace ?? 'default')
       : undefined;
     const path = buildPath(apiVersion, plural, namespaced, namespace, name);
-    const body = JSON.stringify(manifest);
+    const body = JSON.stringify(sanitizeForApply(manifest));
     try {
       return await this.request(path, {
         method: 'PATCH',

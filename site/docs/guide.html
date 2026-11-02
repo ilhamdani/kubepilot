@@ -35,6 +35,7 @@
           <a href="#navigator">Navigator &amp; tables</a>
           <a href="#details">Details drawer</a>
           <a href="#yaml">Editing YAML</a>
+          <a href="#compare">Comparing YAML</a>
           <a href="#logs">Logs</a>
           <a href="#terminal">Terminal</a>
           <a href="#metrics">Metrics</a>
@@ -107,6 +108,35 @@
           Applying a manifest replaces fields you removed. If you only want to change one value,
           scale and restart actions are safer than a full apply.
         </div>
+        <p>
+          The editor shows the object as the API server returns it, but the apply request is
+          cleaned first: <code>managedFields</code>, <code>resourceVersion</code>, <code>uid</code>,
+          <code>creationTimestamp</code> and the whole <code>status</code> block are stripped before
+          the patch leaves the app. That is why a round-trip — open, change one line, apply — never
+          trips over server-owned metadata.
+        </p>
+
+        <h2 id="compare">Comparing YAML</h2>
+        <p>
+          <strong>Compare</strong> in the YAML footer opens a side-by-side diff. Each side has its
+          own cluster, kind, namespace and object pickers, so you can diff two objects in the same
+          cluster or the same object across two clusters — a staging and a production context, for
+          example. Both sides are read-only; the diff editor is there to look, not to apply.
+        </p>
+        <figure class="shot frame">
+          <a class="zoom" href="../assets/shots/compare.png" target="_blank" rel="noopener"><img src="../assets/shots/compare.png" alt="Split compare view with two cluster pickers and a side-by-side YAML diff" /></a>
+          <figcaption>
+            Two contexts, two Deployments, one diff. The header line names both sides:
+            <code>docker-desktop/default/lead-apply-check</code> vs
+            <code>docker-desktop-2/default/lead-apply-check-2</code>.
+          </figcaption>
+        </figure>
+        <p>
+          A cluster you have not opened yet is connected on demand when you pick it in a pane, and
+          the pane reports a connection error with a retry button instead of silently showing an
+          empty document. You can also start a comparison from a table row's context menu
+          (<em>Compare with…</em>), which pre-fills the left side.
+        </p>
 
         <h2 id="logs">Logs</h2>
         <p>
