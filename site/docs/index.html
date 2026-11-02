@@ -94,6 +94,11 @@
           <li>Eject the image, then launch KubePilot from Applications.</li>
         </ol>
         <p>
+          The disk images are produced by the macOS workflow in this repository. If neither file is
+          on the releases page yet, build one yourself with <code>npm run dist:mac</code> on a Mac,
+          or run <code>.github/workflows/build-mac.yml</code> from the Actions tab.
+        </p>
+        <p>
           The macOS build is unsigned and not notarized, so Gatekeeper blocks the first launch
           with <em>“Apple could not verify KubePilot is free of malware”</em>. Click <em>Done</em>,
           then right-click the app in Applications and choose <em>Open → Open</em>. If macOS still
