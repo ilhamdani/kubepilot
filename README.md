@@ -68,9 +68,8 @@ src/
     kube/
       config.ts    kubeconfig discovery, parsing, exec credential plugins
       client.ts    native Kubernetes HTTP/WS client (node:https, node:http, ws)
-      backend.ts   ClusterBackend interface shared by live and demo backends
+      backend.ts   ClusterBackend interface
       live.ts      LiveBackend — talks to a real API server
-      demo.ts      DemoBackend — deterministic in-memory cluster
       registry.ts  cluster registry + persisted settings
     ipc.ts         every IPC channel, one place
     index.ts       window lifecycle
@@ -92,7 +91,7 @@ Design notes:
 ## Status
 
 Early but functional. Working today: discovery, lists, watch, details, YAML apply, delete,
-scale, restart, logs, exec, metrics, port forwarding, demo cluster.
+scale, restart, logs, exec, metrics, port forwarding, and context-aware create templates.
 
 Not yet: Helm, CRD schema validation, RBAC-aware UI, multi-window, macOS/Linux packaging
 targets (the config is Windows-first right now), automated tests.

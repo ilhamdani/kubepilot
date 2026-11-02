@@ -10,6 +10,7 @@ import type {
   HotbarItem,
 } from '@shared/types';
 import { api } from '../api';
+import { defaultTemplate, templateFor, type CreateTemplate } from '../lib/templates';
 
 export interface ResourceTabRef {
   id: string;
@@ -28,6 +29,8 @@ export interface Tab {
   kind: TabKind;
   title: string;
   resource?: ResourceTabRef;
+  /** Set on `create` tabs: the scaffold the `+` button opened with. */
+  create?: CreateTemplate;
 }
 
 export interface DetailsTarget {
@@ -91,7 +94,13 @@ interface AppStore {
 
   openResourceTab: (clusterId: string, resource: ResourceTabRef) => void;
   openOverviewTab: (clusterId: string) => void;
-  openCreateTab: (clusterId: string) => void;
+  /**
+   * Opens a create tab. When `resource` is given the editor starts from that
+   * kind's template; otherwise it falls back to a Deployment scaffold.
+   */
+  openCreateTab: (clusterId: string, resource?: ResourceTabRef) => void;
+  /** Swaps the scaffold of an open create tab (kind picker). */
+  setCreateTemplate: (tabId: string, template: CreateTemplate) => void;
   openSettingsTab: () => void;
   activateTab: (tabId: string) => void;
   closeTab: (tabId: string) => void;
@@ -157,10 +166,10 @@ export const useApp = create<AppStore>((set, get) => ({
       set((prev) => ({ states: { ...prev.states, [state.cluster.id]: state } }));
     });
 
-    // Auto-connect to the demo cluster on first launch so the app is never empty.
-    const demo = clusters.find((c) => c.kind === 'demo');
-    if (demo) {
-      await get().setActiveCluster(demo.id);
+    // Open the first cluster that has a kubeconfig so the app is useful
+    // immediately; with no kubeconfig the UI explains how to add one.
+    if (clusters.length) {
+      await get().setActiveCluster(clusters[0].id);
     }
   },
 
@@ -235,9 +244,29 @@ export const useApp = create<AppStore>((set, get) => ({
     set((prev) => ({ tabs: [...prev.tabs, tab], activeTabId: tab.id }));
   },
 
-  openCreateTab(clusterId) {
-    const tab: Tab = { id: uid(), clusterId, kind: 'create', title: 'Create Resource' };
+  openCreateTab(clusterId, resource) {
+    const selected = get().settings.namespaceByCluster[clusterId] ?? 'all';
+    // With "All namespaces" selected, scaffold into the context's namespace so
+    // the manifest says where the object will land.
+    const namespace =
+      selected === 'all' ? get().states[clusterId]?.cluster.namespace : selected;
+    const template = resource ? templateFor(resource, namespace) : defaultTemplate(namespace);
+    const tab: Tab = {
+      id: uid(),
+      clusterId,
+      kind: 'create',
+      title: template ? `Create ${template.kind}` : 'Create Resource',
+      create: template,
+    };
     set((prev) => ({ tabs: [...prev.tabs, tab], activeTabId: tab.id }));
+  },
+
+  setCreateTemplate(tabId, template) {
+    set((prev) => ({
+      tabs: prev.tabs.map((t) =>
+        t.id === tabId ? { ...t, create: template, title: `Create ${template.kind}` } : t,
+      ),
+    }));
   },
 
   openSettingsTab() {
@@ -399,3 +428,15 @@ export const useApp = create<AppStore>((set, get) => ({
     await get().setSettings({ hotbar: next });
   },
 }));
+
+/**
+ * The resource collection currently on screen, if the active tab is a list.
+ * This is what makes the `+` button context sensitive. The returned object is
+ * the same reference stored on the tab, so it is safe as a selector result.
+ */
+export function useActiveResource(): ResourceTabRef | undefined {
+  return useApp((s) => {
+    const tab = s.tabs.find((t) => t.id === s.activeTabId);
+    return tab?.kind === 'resource' ? tab.resource : undefined;
+  });
+}

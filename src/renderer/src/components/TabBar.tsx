@@ -1,4 +1,5 @@
-import { useApp } from '../state/store';
+import { isCreateable } from '../lib/templates';
+import { useActiveResource, useApp } from '../state/store';
 import { CloseIcon, ResourceIcon } from './Icons';
 
 export function TabBar() {
@@ -8,6 +9,16 @@ export function TabBar() {
   const closeTab = useApp((s) => s.closeTab);
   const activeClusterId = useApp((s) => s.activeClusterId);
   const openCreateTab = useApp((s) => s.openCreateTab);
+  const activeResource = useActiveResource();
+
+  // `+` creates whatever the current list shows; kinds the cluster owns
+  // (nodes, events) have no scaffold, so the action is disabled for them.
+  const canCreate = !activeResource || isCreateable(activeResource.kind);
+  const createTitle = !canCreate
+    ? `${activeResource?.kind} objects cannot be created from YAML`
+    : activeResource
+      ? `Create ${activeResource.kind} from YAML`
+      : 'Create resource from YAML';
 
   return (
     <div className="tabs">
@@ -60,8 +71,9 @@ export function TabBar() {
         {activeClusterId && (
           <button
             className="icon-btn"
-            title="Create resource from YAML"
-            onClick={() => openCreateTab(activeClusterId)}
+            title={createTitle}
+            disabled={!canCreate}
+            onClick={() => openCreateTab(activeClusterId, activeResource)}
           >
             <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
               <path d="M8 3v10M3 8h10" />

@@ -119,7 +119,6 @@ export function listClusters(paths: string[]): ClusterInfo[] {
         userName: ctx.context?.user,
         namespace: ctx.context?.namespace ?? 'default',
         kubeconfigPath: path,
-        kind: 'live',
       });
     }
   }

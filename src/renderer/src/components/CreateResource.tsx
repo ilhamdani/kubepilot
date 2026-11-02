@@ -1,52 +1,38 @@
 import { useMemo, useState } from 'react';
 import { api } from '../api';
-import { useApp } from '../state/store';
+import { CATALOG } from '../lib/catalog';
+import { defaultTemplate, isCreateable, templateFor, type CreateTemplate, type TemplateSource } from '../lib/templates';
+import { useApp, type Tab } from '../state/store';
+import { ResourceIcon } from './Icons';
 import { YamlEditor } from './YamlEditor';
 
-const TEMPLATE = `apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: example
-  labels:
-    app: example
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: example
-  template:
-    metadata:
-      labels:
-        app: example
-    spec:
-      containers:
-        - name: example
-          image: nginx:1.27-alpine
-          ports:
-            - containerPort: 80
-          resources:
-            requests:
-              cpu: 50m
-              memory: 64Mi
-            limits:
-              cpu: 200m
-              memory: 128Mi
-`;
+interface Option {
+  id: string;
+  label: string;
+  source: TemplateSource;
+}
 
-export function CreateResource({ clusterId }: { clusterId: string }) {
+/**
+ * Create-from-YAML view. The initial document comes from the tab, which the
+ * `+` button builds from whatever resource list was on screen — so clicking
+ * `+` on Deployments opens a Deployment, on Services a Service, and so on.
+ */
+export function CreateResource({ tab }: { tab: Tab }) {
+  const clusterId = tab.clusterId;
   const state = useApp((s) => s.states[clusterId]);
   const namespace = useApp((s) => s.settings.namespaceByCluster[clusterId] ?? 'all');
   const toast = useApp((s) => s.toast);
   const closeTab = useApp((s) => s.closeTab);
-  const activeTabId = useApp((s) => s.activeTabId);
+  const setCreateTemplate = useApp((s) => s.setCreateTemplate);
 
-  const initial = useMemo(() => {
-    if (namespace === 'all') return TEMPLATE;
-    return TEMPLATE.replace('metadata:\n  name: example', `metadata:\n  name: example\n  namespace: ${namespace}`);
-  }, [namespace]);
-
-  const [value, setValue] = useState(initial);
+  const [template, setTemplate] = useState<CreateTemplate>(
+    () => tab.create ?? defaultTemplate(namespace === 'all' ? undefined : namespace),
+  );
+  const [value, setValue] = useState(template.yaml);
   const [busy, setBusy] = useState(false);
+
+  /** Namespace to scaffold into: the filter, or the context default. */
+  const targetNamespace = namespace === 'all' ? state?.cluster.namespace : namespace;
 
   const kindMap = useMemo(() => {
     const map: Record<string, { plural: string; namespaced: boolean }> = {};
@@ -55,6 +41,51 @@ export function CreateResource({ clusterId }: { clusterId: string }) {
     }
     return map;
   }, [state?.resources]);
+
+  // Built-in kinds that can be created, plus any CRDs this cluster exposes.
+  const options = useMemo<Option[]>(() => {
+    const built: Option[] = CATALOG.filter((kind) => isCreateable(kind.kind)).map((kind) => ({
+      id: kind.id,
+      label: kind.label,
+      source: {
+        kind: kind.kind,
+        apiVersion: kind.apiVersion,
+        plural: kind.plural,
+        namespaced: kind.namespaced,
+        label: kind.label,
+      },
+    }));
+    const custom: Option[] = (state?.resources ?? [])
+      .filter((resource) => resource.custom)
+      .map((resource) => ({
+        id: `cr:${resource.apiVersion}:${resource.plural}`,
+        label: resource.kind,
+        source: {
+          kind: resource.kind,
+          apiVersion: resource.apiVersion,
+          plural: resource.plural,
+          namespaced: resource.namespaced,
+          label: resource.kind,
+        },
+      }))
+      .sort((a, b) => a.label.localeCompare(b.label));
+    return [...built, ...custom];
+  }, [state?.resources]);
+
+  const currentOption =
+    options.find(
+      (option) => option.source.kind === template.kind && option.source.apiVersion === template.apiVersion,
+    )?.id ?? '';
+
+  const pickKind = (id: string) => {
+    const option = options.find((entry) => entry.id === id);
+    if (!option) return;
+    const next = templateFor(option.source, targetNamespace);
+    if (!next) return;
+    setTemplate(next);
+    setValue(next.yaml);
+    setCreateTemplate(tab.id, next);
+  };
 
   const apply = async () => {
     setBusy(true);
@@ -66,7 +97,7 @@ export function CreateResource({ clusterId }: { clusterId: string }) {
         for (const result of results) {
           toast(`${result.kind} ${result.name} applied`, 'success');
         }
-        if (activeTabId) closeTab(activeTabId);
+        closeTab(tab.id);
       }
     } catch (err: any) {
       toast(err?.message ?? 'Apply failed', 'error');
@@ -78,10 +109,27 @@ export function CreateResource({ clusterId }: { clusterId: string }) {
   return (
     <div className="content">
       <div className="toolbar">
-        <span className="toolbar-title">Create resource</span>
-        <span className="toolbar-count">paste or edit YAML, then apply</span>
+        <ResourceIcon kind={template.kind} size={16} />
+        <span className="toolbar-title">Create {template.kind}</span>
+        <span className="toolbar-count">{template.apiVersion}</span>
+
         <div className="toolbar-spacer" />
-        <button className="btn btn--ghost" onClick={() => setValue(initial)}>
+
+        <select
+          className="ns-select"
+          value={currentOption}
+          onChange={(event) => pickKind(event.target.value)}
+          title="Template kind"
+        >
+          {currentOption === '' && <option value="">Custom YAML</option>}
+          {options.map((option) => (
+            <option key={option.id} value={option.id}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+
+        <button className="btn btn--ghost" onClick={() => setValue(template.yaml)}>
           Reset
         </button>
         <button className="btn btn--primary" disabled={busy} onClick={() => void apply()}>

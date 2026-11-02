@@ -207,9 +207,14 @@ textarea:focus {
   color: var(--textColorSecondary);
 }
 
-.rail-btn:hover {
+.rail-btn:hover:not(:disabled) {
   background: var(--sidebarItemHoverBackground);
   color: var(--textColorAccent);
+}
+
+.rail-btn:disabled {
+  opacity: 0.3;
+  cursor: default;
 }
 
 /* --------------------------------------------------------- navigator */
@@ -485,7 +490,7 @@ textarea:focus {
   color: var(--textColorSecondary);
 }
 
-.icon-btn:hover {
+.icon-btn:hover:not(:disabled) {
   background: rgba(255, 255, 255, 0.08);
   color: var(--textColorAccent);
 }

@@ -48,13 +48,13 @@
         <span class="eyebrow">Documentation</span>
         <h1>Getting started</h1>
         <p class="lede">
-          KubePilot starts with a working demo cluster, so you can explore the whole interface
-          before you point it at anything real. Connecting a cluster is one file away.
+          KubePilot connects to the contexts already in your kubeconfig — there is nothing to seed
+          or configure first. This page takes you from install to a working cluster view.
         </p>
 
         <figure class="shot frame" style="margin-top: 2rem">
           <a class="zoom" href="../assets/shots/hero.png" target="_blank" rel="noopener"><img src="../assets/shots/hero.png" alt="KubePilot cluster overview" /></a>
-          <figcaption>First run: the bundled demo cluster, fully populated.</figcaption>
+          <figcaption>Cluster overview, connected to a local Docker Desktop cluster.</figcaption>
         </figure>
 
         <h2 id="requirements">Requirements</h2>
@@ -65,7 +65,7 @@
           <tbody>
             <tr><td>Windows 10/11 x64</td><td>The packaged installer</td></tr>
             <tr><td>Node 22+</td><td>Running from source</td></tr>
-            <tr><td>A kubeconfig</td><td>Connecting real clusters (optional — the demo needs nothing)</td></tr>
+            <tr><td>A kubeconfig</td><td>Connecting clusters — <code>~/.kube/config</code> is read automatically</td></tr>
             <tr><td>Kubernetes 1.24+</td><td>Server-side apply, <code>metrics.k8s.io</code>, exec</td></tr>
           </tbody>
         </table>

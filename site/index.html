@@ -55,7 +55,7 @@ cd kubepilot &amp;&amp; npm i &amp;&amp; npm run dev</code></pre>
             <img src="assets/shots/hero.png" alt="KubePilot cluster overview showing pod, node and deployment health" width="1080" height="627" />
             <figcaption class="frame-caption">
               <span>Cluster overview</span>
-              <span>demo cluster · v1.29.6</span>
+              <span>docker-desktop · v1.36.4</span>
             </figcaption>
           </figure>
         </div>
@@ -252,8 +252,9 @@ cd kubepilot &amp;&amp; npm i &amp;&amp; npm run dev</code></pre>
             <div class="arch-row">
               <dt>Backends</dt>
               <dd>
-                <code>LiveBackend</code> talks to an API server; <code>DemoBackend</code> serves a
-                deterministic cluster so the UI runs with no kubeconfig at all.
+                <code>LiveBackend</code> is the only backend: every cluster comes from a kubeconfig
+                context and is driven straight over the Kubernetes API — watch, exec, logs and
+                server-side apply.
               </dd>
             </div>
           </dl>

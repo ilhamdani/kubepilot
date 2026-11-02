@@ -1,8 +1,9 @@
 import { useMemo, useState } from 'react';
 import type { ClusterState, DiscoveredResource } from '@shared/types';
 import { CATALOG, GROUPS, type ResourceKind } from '../lib/catalog';
+import { isCreateable } from '../lib/templates';
 import { ChevronIcon, ResourceIcon, SearchIcon } from './Icons';
-import { useApp, type ResourceTabRef } from '../state/store';
+import { useActiveResource, useApp, type ResourceTabRef } from '../state/store';
 
 interface Props {
   clusterId: string;
@@ -33,6 +34,10 @@ export function Navigator({ clusterId, state, activeResourceId }: Props) {
   const [query, setQuery] = useState('');
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
   const openResourceTab = useApp((s) => s.openResourceTab);
+  const openCreateTab = useApp((s) => s.openCreateTab);
+  const activeResource = useActiveResource();
+
+  const canCreate = !activeResource || isCreateable(activeResource.kind);
 
   const custom = useMemo(() => customKinds(state), [state]);
 
@@ -131,8 +136,15 @@ export function Navigator({ clusterId, state, activeResourceId }: Props) {
       <div className="nav-footer">
         <button
           className="rail-btn"
-          title="Create resource from YAML"
-          onClick={() => useApp.getState().openCreateTab(clusterId)}
+          title={
+            canCreate
+              ? activeResource
+                ? `Create ${activeResource.kind} from YAML`
+                : 'Create resource from YAML'
+              : `${activeResource?.kind} objects cannot be created from YAML`
+          }
+          disabled={!canCreate}
+          onClick={() => openCreateTab(clusterId, activeResource)}
         >
           <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
             <path d="M8 3v10M3 8h10" />

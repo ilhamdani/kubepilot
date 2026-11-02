@@ -95,8 +95,8 @@ export function Settings() {
             ))}
           </div>
           <div className="hint" style={{ marginTop: 10 }}>
-            Contexts are read on startup. The demo cluster is always available and needs no
-            kubeconfig.
+            Contexts are read on startup from <span className="mono">KUBECONFIG</span>,{' '}
+            <span className="mono">~/.kube/config</span> and the paths above.
           </div>
         </div>
 

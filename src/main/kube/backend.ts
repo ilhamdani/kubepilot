@@ -30,13 +30,11 @@ export interface ExecHandlers {
 }
 
 /**
- * Everything the UI needs from a cluster. `LiveBackend` talks to a real API
- * server; `DemoBackend` serves fixtures with the same semantics so the whole
- * interface is explorable without a kubeconfig.
+ * Everything the UI needs from a cluster. `LiveBackend` is the only
+ * implementation — every cluster in the app is a real kubeconfig context.
  */
 export interface ClusterBackend {
   readonly id: string;
-  readonly kind: 'live' | 'demo';
   connect(): Promise<ConnectResult>;
   list(query: ResourceQuery): Promise<{ items: KubeObject[]; resourceVersion?: string }>;
   get(ref: ResourceRef): Promise<KubeObject>;

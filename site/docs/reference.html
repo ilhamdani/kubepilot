@@ -92,14 +92,14 @@
       client.ts    HTTP/WS client, watch, exec, logs, apply
       backend.ts   ClusterBackend interface
       live.ts      real cluster
-      demo.ts      deterministic demo cluster
     ipc.ts         every channel in one place
   preload/         contextBridge surface
   renderer/        React + Zustand
   shared/          DTOs shared by all three</code></pre>
         <p>
-          <code>LiveBackend</code> and <code>DemoBackend</code> implement the same interface, which
-          is why the entire UI works with no kubeconfig present.
+          <code>LiveBackend</code> implements that interface over the Kubernetes API, so the UI has
+          no idea whether it is talking to a single-node Docker Desktop cluster or a production
+          control plane.
         </p>
 
         <h2 id="files">Files &amp; data</h2>

@@ -201,7 +201,9 @@ export class KubeClient {
             } catch {
               /* non JSON error body */
             }
-            reject(new KubeApiError(status, message, reason));
+            // The path is part of the diagnosis: most 404/405s come from a
+            // missing namespace segment rather than from the object itself.
+            reject(new KubeApiError(status, `${method} ${path}: ${message}`, reason));
             return;
           }
           if (!text) return resolve(undefined as T);
@@ -267,7 +269,12 @@ export class KubeClient {
   async apply(manifest: KubeObject, plural: string, namespaced: boolean): Promise<KubeObject> {
     const apiVersion = manifest.apiVersion;
     const name = manifest.metadata?.name;
-    const namespace = manifest.metadata?.namespace;
+    // A namespaced manifest without metadata.namespace would be sent to the
+    // cluster-scoped path, which the API server rejects with 405. Fall back to
+    // the kubeconfig context namespace, the same way kubectl does.
+    const namespace = namespaced
+      ? (manifest.metadata?.namespace ?? this.namespace ?? 'default')
+      : undefined;
     const path = buildPath(apiVersion, plural, namespaced, namespace, name);
     const body = JSON.stringify(manifest);
     try {

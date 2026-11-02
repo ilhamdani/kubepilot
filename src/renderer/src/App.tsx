@@ -149,9 +149,27 @@ export function App() {
             <ItemList clusterId={activeTab.clusterId} resource={activeTab.resource} />
           )}
 
-          {activeTab?.kind === 'create' && <CreateResource clusterId={activeTab.clusterId} />}
+          {activeTab?.kind === 'create' && <CreateResource tab={activeTab} />}
 
           {activeTab?.kind === 'settings' && <Settings />}
+
+          {!activeClusterId && (
+            <div className="welcome">
+              <h2>No cluster yet</h2>
+              <p>
+                KubePilot reads contexts from your kubeconfig. None were found in{' '}
+                <span className="mono">~/.kube/config</span> or the paths listed in Preferences.
+              </p>
+              <div className="welcome-actions">
+                <button className="btn btn--primary" onClick={() => void addCluster()}>
+                  Add kubeconfig
+                </button>
+                <button className="btn btn--ghost" onClick={openSettingsTab}>
+                  Preferences
+                </button>
+              </div>
+            </div>
+          )}
 
           {!activeTab && activeState?.status === 'connected' && (
             <div className="welcome">

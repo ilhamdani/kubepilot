@@ -3,7 +3,6 @@ import { dirname, join } from 'node:path';
 import { app } from 'electron';
 import type { ClusterInfo, ClusterState, StoredSettings } from '@shared/types';
 import { defaultKubeconfigPaths, listClusters } from './config';
-import { DemoBackend } from './demo';
 import { LiveBackend } from './live';
 import type { ClusterBackend } from './backend';
 
@@ -14,18 +13,6 @@ const DEFAULT_SETTINGS: StoredSettings = {
   nodeShellImage: 'busybox:1.36',
   showMetrics: true,
   namespaceByCluster: {},
-};
-
-export const DEMO_CLUSTER: ClusterInfo = {
-  id: 'demo',
-  name: 'kubepilot-demo-cluster',
-  displayName: 'Demo Cluster',
-  server: 'https://demo.k8s.local',
-  userName: 'demo-user',
-  namespace: 'shop',
-  kubeconfigPath: '(built in)',
-  kind: 'demo',
-  color: '#3d90ce',
 };
 
 interface PersistedConfig extends StoredSettings {
@@ -111,13 +98,10 @@ export class ClusterRegistry {
       live = [];
     }
     const displayNames = this.config.clusterDisplayNames ?? {};
-    return [
-      DEMO_CLUSTER,
-      ...live.map((c) => ({
-        ...c,
-        displayName: displayNames[c.id] ?? c.displayName,
-      })),
-    ];
+    return live.map((c) => ({
+      ...c,
+      displayName: displayNames[c.id] ?? c.displayName,
+    }));
   }
 
   getState(clusterId: string): ClusterState | undefined {
@@ -141,16 +125,13 @@ export class ClusterRegistry {
   backend(clusterId: string): ClusterBackend {
     const existing = this.backends.get(clusterId);
     if (existing) return existing;
-    const backend: ClusterBackend =
-      clusterId === 'demo' ? new DemoBackend() : new LiveBackend(clusterId, this.allKubeconfigPaths());
+    const backend = new LiveBackend(clusterId, this.allKubeconfigPaths());
     this.backends.set(clusterId, backend);
     return backend;
   }
 
   async connect(clusterId: string): Promise<ClusterState> {
-    const cluster =
-      this.listClusters().find((c) => c.id === clusterId) ??
-      (clusterId === 'demo' ? DEMO_CLUSTER : undefined);
+    const cluster = this.listClusters().find((c) => c.id === clusterId);
     if (!cluster) throw new Error(`Unknown cluster "${clusterId}"`);
 
     const connecting: ClusterState = {
@@ -185,8 +166,6 @@ export class ClusterRegistry {
   }
 
   async disconnect(clusterId: string): Promise<void> {
-    const backend = this.backends.get(clusterId);
-    if (backend instanceof DemoBackend) backend.dispose();
     this.backends.delete(clusterId);
     const cluster = this.listClusters().find((c) => c.id === clusterId);
     if (cluster) this.publish({ cluster, status: 'disconnected' });

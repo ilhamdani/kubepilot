@@ -64,7 +64,7 @@ export function ClusterRail({
                 className="rail-avatar"
                 style={{ background: cluster.color ?? colorFor(cluster.displayName) }}
               >
-                {cluster.kind === 'demo' ? 'D' : initials(cluster.displayName)}
+                {initials(cluster.displayName)}
               </span>
               <span
                 className="rail-dot"

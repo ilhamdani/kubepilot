@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { CATALOG } from '../lib/catalog';
-import { useApp } from '../state/store';
+import { isCreateable } from '../lib/templates';
+import { useActiveResource, useApp } from '../state/store';
 import { ResourceIcon, SearchIcon } from './Icons';
 
 interface Entry {
@@ -24,6 +25,7 @@ export function CommandPalette() {
   const openSettingsTab = useApp((s) => s.openSettingsTab);
   const activateTab = useApp((s) => s.activateTab);
   const setActiveCluster = useApp((s) => s.setActiveCluster);
+  const activeResource = useActiveResource();
 
   const [query, setQuery] = useState('');
   const [index, setIndex] = useState(0);
@@ -44,7 +46,7 @@ export function CommandPalette() {
       list.push({
         id: `cluster:${cluster.id}`,
         label: cluster.displayName,
-        hint: cluster.kind === 'demo' ? 'demo' : cluster.server,
+        hint: cluster.server,
         section: 'Clusters',
         run: () => void setActiveCluster(cluster.id),
       });
@@ -88,8 +90,19 @@ export function CommandPalette() {
         section: 'Actions',
         run: () => openOverviewTab(activeClusterId),
       });
+      if (activeResource && isCreateable(activeResource.kind)) {
+        const source = activeResource;
+        list.push({
+          id: 'action:create',
+          label: `Create ${source.kind} from YAML`,
+          hint: 'template',
+          kind: source.kind,
+          section: 'Actions',
+          run: () => openCreateTab(activeClusterId, source),
+        });
+      }
       list.push({
-        id: 'action:create',
+        id: 'action:create-blank',
         label: 'Create resource from YAML',
         section: 'Actions',
         run: () => openCreateTab(activeClusterId),
@@ -103,7 +116,7 @@ export function CommandPalette() {
     });
 
     return list;
-  }, [clusters, activeClusterId, tabs, openResourceTab, openOverviewTab, openCreateTab, openSettingsTab, activateTab, setActiveCluster]);
+  }, [clusters, activeClusterId, activeResource, tabs, openResourceTab, openOverviewTab, openCreateTab, openSettingsTab, activateTab, setActiveCluster]);
 
   const filtered = useMemo(() => {
     const needle = query.trim().toLowerCase();

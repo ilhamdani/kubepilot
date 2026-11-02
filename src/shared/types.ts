@@ -11,7 +11,7 @@ export type ClusterConnectionStatus =
   | 'error';
 
 export interface ClusterInfo {
-  /** Stable id: `live:<contextName>` or `demo`. */
+  /** Stable id: `live:<contextName>`. */
   id: string;
   /** Context name as it appears in the kubeconfig. */
   name: string;
@@ -22,8 +22,6 @@ export interface ClusterInfo {
   namespace?: string;
   /** Which kubeconfig file the context came from. */
   kubeconfigPath: string;
-  /** `demo` clusters are backed by the built-in fixture provider. */
-  kind: 'live' | 'demo';
   /** Optional per-cluster accent colour, used by the cluster rail. */
   color?: string;
 }

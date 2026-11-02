@@ -248,8 +248,8 @@ export function registerIpc(registry: ClusterRegistry): void {
         status: 'starting',
       };
       const cluster = registry.listClusters().find((c) => c.id === req.clusterId);
-      if (!cluster || cluster.kind === 'demo') {
-        const failed = { ...state, status: 'error' as const, error: 'Port forwarding needs a live cluster' };
+      if (!cluster) {
+        const failed = { ...state, status: 'error' as const, error: 'Unknown cluster' };
         event.sender.send('kubepilot:portforward-state', failed);
         return failed;
       }
