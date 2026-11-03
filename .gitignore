@@ -1,16 +1,43 @@
+# ============================================================
+#  KubePilot — what gets pushed: source code + release-v11/
+#  Everything else (builds, caches, scratch) stays local.
+# ============================================================
+
+# ---------- dependencies ----------
 node_modules/
+
+# ---------- build outputs ----------
 out/
 dist/
+
+# ---------- releases ----------
+# All electron-builder output dirs are ignored EXCEPT release-v11/,
+# which holds the current installer and is published with the repo.
+# The .exe/.blockmap inside are stored via Git LFS (see .gitattributes).
+# When you cut a new version, point the exception at the new dir:
+#   release*/
+#   !release-v12/
 release*/
+!release-v11/
+# the unpacked build inside release-v11 duplicates the installer (367 MB of DLLs)
+# and would burn Git LFS quota -- only the installer files are published
+release-v11/win-unpacked/
 installer/
+builder-debug.yml
+.icon-ico/
+
+# ---------- caches ----------
 .cache/
-.tmp-userdata/
+
+# ---------- test scratch ----------
+# throwaway Electron profiles (--user-data-dir) and electron-builder probe runs
+.tmp-*/
+.probe-*/
+
+# ---------- dev captures ----------
 *.log
 shot*.png
+
+# ---------- OS ----------
 .DS_Store
-.tmp-edge*/
-.tmp-run*/
-# every throwaway Electron profile (--user-data-dir) used for testing
-.tmp-*/
-# electron-builder probe runs (--dir --config.directories.output=.probe-win)
-.probe-*/
+Thumbs.db
