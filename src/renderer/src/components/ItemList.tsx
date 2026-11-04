@@ -6,6 +6,7 @@ import { findKindById, type ColumnDef, type RowContext } from '../lib/catalog';
 import { refreshList, useKubeList } from '../state/lists';
 import { useApp, type ResourceTabRef } from '../state/store';
 import { ContextMenu, Modal, type MenuItem } from './Overlays';
+import { PortForwardDialog } from './PortForwardDialog';
 import { ResourceIcon, SearchIcon, StatusBrick } from './Icons';
 
 interface Props {
@@ -220,30 +221,47 @@ export function ItemList({ tabId, clusterId, resource }: Props) {
   const restart = async (object: KubeObject) => {
     try {
       await api.resources.restart(refOf(object));
-      toast(`Rollout restart requested for ${object.metadata.name}`, 'success');
+      toast(`Rollout restart requested for ${object.metadata.name}.`, 'success', {
+        title: 'Rollout restarted',
+        detail: `${object.kind} ${object.metadata.namespace ?? ''}/${object.metadata.name}`,
+      });
     } catch (err: any) {
-      toast(err?.message ?? 'Restart failed', 'error');
+      toast(err?.message ?? 'Restart failed', 'error', {
+        title: 'Rollout restart failed',
+        detail: err?.message,
+      });
     }
   };
 
   const remove = async (object: KubeObject) => {
     try {
       await api.resources.remove(refOf(object));
-      toast(`${object.kind} ${object.metadata.name} deleted`, 'success');
+      toast(`${object.kind} ${object.metadata.name} deleted.`, 'success', {
+        title: 'Resource deleted',
+        detail: `${object.metadata.namespace ?? 'cluster'}/${object.metadata.name}`,
+      });
       setDeleting(null);
       void refreshList(listQuery);
     } catch (err: any) {
-      toast(err?.message ?? 'Delete failed', 'error');
+      toast(err?.message ?? 'Delete failed', 'error', {
+        title: 'Could not delete resource',
+        detail: err?.message,
+      });
     }
   };
 
   const doScale = async (object: KubeObject, replicas: number) => {
     try {
       await api.resources.scale(refOf(object), replicas);
-      toast(`Scaled ${object.metadata.name} to ${replicas}`, 'success');
+      toast(`Scaled ${object.metadata.name} to ${replicas} replicas.`, 'success', {
+        title: 'Scaled',
+      });
       setScaling(null);
     } catch (err: any) {
-      toast(err?.message ?? 'Scale failed', 'error');
+      toast(err?.message ?? 'Scale failed', 'error', {
+        title: 'Could not scale resource',
+        detail: err?.message,
+      });
     }
   };
 
@@ -385,8 +403,14 @@ export function ItemList({ tabId, clusterId, resource }: Props) {
                   <div
                     key={id}
                     className={`tr ${selected === id ? 'tr--selected' : ''}`}
-                    onClick={() => setSelected(id)}
-                    onDoubleClick={() => openDetails(clusterId, refOf(object), resource.id)}
+                    // A single click opens the detail drawer. The store keeps
+                    // the active sub-tab when the same row is clicked again,
+                    // so a double-click does not reset YAML/Events to Overview.
+                    onClick={() => {
+                      setSelected(id);
+                      openDetails(clusterId, refOf(object), resource.id);
+                    }}
+                    title="Click to view details · right-click for actions"
                     onContextMenu={(event) => {
                       event.preventDefault();
                       setSelected(id);
@@ -467,10 +491,6 @@ export function ItemList({ tabId, clusterId, resource }: Props) {
           object={forwarding}
           clusterId={clusterId}
           onClose={() => setForwarding(null)}
-          onStarted={(message) => {
-            toast(message, 'success');
-            setForwarding(null);
-          }}
         />
       )}
     </div>
@@ -520,84 +540,3 @@ function ScaleDialog({
   );
 }
 
-function PortForwardDialog({
-  object,
-  clusterId,
-  onClose,
-  onStarted,
-}: {
-  object: KubeObject;
-  clusterId: string;
-  onClose: () => void;
-  onStarted: (message: string) => void;
-}) {
-  const remoteDefault =
-    object.kind === 'Pod'
-      ? (object.spec?.containers?.[0]?.ports?.[0]?.containerPort ?? 8080)
-      : (object.spec?.ports?.[0]?.port ?? 80);
-  const [localPort, setLocalPort] = useState<number>(remoteDefault);
-  const [remotePort, setRemotePort] = useState<number>(remoteDefault);
-  const [error, setError] = useState<string>();
-
-  const start = async () => {
-    try {
-      const result = await api.portForward.start({
-        clusterId,
-        namespace: object.metadata.namespace,
-        kind: object.kind === 'Pod' ? 'pod' : 'service',
-        name: object.metadata.name,
-        localPort,
-        remotePort,
-      });
-      if (result.status === 'error') {
-        setError(result.error ?? 'Port forward failed');
-        return;
-      }
-      onStarted(`Forwarding localhost:${localPort} → ${object.metadata.name}:${remotePort}`);
-    } catch (err: any) {
-      setError(err?.message ?? 'Port forward failed');
-    }
-  };
-
-  return (
-    <Modal
-      title="Port forward"
-      onClose={onClose}
-      footer={
-        <>
-          <button className="btn btn--ghost" onClick={onClose}>
-            Cancel
-          </button>
-          <button className="btn btn--primary" onClick={() => void start()}>
-            Start
-          </button>
-        </>
-      }
-    >
-      <div>
-        Forward a local port to{' '}
-        <strong style={{ color: 'var(--textColorAccent)' }}>
-          {object.kind.toLowerCase()}/{object.metadata.name}
-        </strong>
-        . Uses the local <span className="mono">kubectl</span> binary.
-      </div>
-      <div className="field">
-        <label>Local port</label>
-        <input
-          type="number"
-          value={localPort}
-          onChange={(event) => setLocalPort(Number(event.target.value))}
-        />
-      </div>
-      <div className="field">
-        <label>Remote port</label>
-        <input
-          type="number"
-          value={remotePort}
-          onChange={(event) => setRemotePort(Number(event.target.value))}
-        />
-      </div>
-      {error && <div className="warning-box">{error}</div>}
-    </Modal>
-  );
-}

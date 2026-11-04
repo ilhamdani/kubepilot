@@ -75,7 +75,7 @@ export function ClusterRail({
           );
         })}
 
-        <button className="rail-btn" onClick={onAddCluster} title="Add cluster from kubeconfig">
+        <button className="rail-btn" onClick={onAddCluster} title="Add cluster — paste a kubeconfig or choose a file">
           <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
             <path d="M9 4v10M4 9h10" />
           </svg>

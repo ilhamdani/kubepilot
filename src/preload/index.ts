@@ -7,6 +7,7 @@ import type {
   ExecData,
   ExecRequest,
   KubeObject,
+  KubeconfigImportResult,
   ListResult,
   LogRequest,
   NodeMetric,
@@ -42,6 +43,8 @@ const api = {
   kubeconfig: {
     paths: () => invoke<string[]>('kubeconfig:paths'),
     add: () => invoke<{ paths: string[]; added: string[] }>('kubeconfig:add'),
+    paste: (payload: { content: string; name?: string }) =>
+      invoke<KubeconfigImportResult>('kubeconfig:paste', payload),
     remove: (path: string) => invoke<string[]>('kubeconfig:remove', path),
   },
   resources: {
@@ -97,6 +100,7 @@ const api = {
       remotePort: number;
     }) => invoke<PortForwardState>('portforward:start', req),
     stop: (id: string) => invoke<boolean>('portforward:stop', id),
+    stopAll: () => invoke<number>('portforward:stopAll'),
     onState: (handler: (state: PortForwardState) => void) =>
       subscribe('kubepilot:portforward-state', handler),
   },

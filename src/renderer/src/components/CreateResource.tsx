@@ -103,15 +103,23 @@ export function CreateResource({ tab }: { tab: Tab }) {
     try {
       const results = await api.resources.applyYaml({ clusterId, yaml: value, kindMap });
       if (!results.length) {
-        toast('Nothing to apply — the document has no kind', 'error');
+        toast('Nothing to apply — the document has no kind.', 'error', {
+          title: 'Nothing applied',
+          detail: 'Add a "kind" and "metadata.name" to the YAML document.',
+        });
       } else {
-        for (const result of results) {
-          toast(`${result.kind} ${result.name} applied`, 'success');
-        }
+        toast(
+          results.map((result) => `${result.kind} ${result.name}`).join(', ') + ' applied.',
+          'success',
+          { title: 'YAML applied', detail: results.map((r) => `${r.action}: ${r.kind} ${r.namespace ?? ''}/${r.name}`).join('\n') },
+        );
         closeTab(tab.id);
       }
     } catch (err: any) {
-      toast(err?.message ?? 'Apply failed', 'error');
+      toast(err?.message ?? 'Apply failed', 'error', {
+        title: 'Could not apply YAML',
+        detail: err?.message,
+      });
     } finally {
       setBusy(false);
     }

@@ -6,6 +6,7 @@ import type {
   ExecData,
   ExecRequest,
   KubeObject,
+  KubeconfigImportResult,
   ListResult,
   LogRequest,
   NodeMetric,
@@ -32,6 +33,8 @@ export interface KubeApi {
   kubeconfig: {
     paths: () => Promise<string[]>;
     add: () => Promise<{ paths: string[]; added: string[] }>;
+    /** Paste raw kubeconfig YAML; the main process validates and stores it. */
+    paste: (payload: { content: string; name?: string }) => Promise<KubeconfigImportResult>;
     remove: (path: string) => Promise<string[]>;
   };
   resources: {
@@ -81,6 +84,7 @@ export interface KubeApi {
       remotePort: number;
     }) => Promise<PortForwardState>;
     stop: (id: string) => Promise<boolean>;
+    stopAll: () => Promise<number>;
     onState: (handler: (state: PortForwardState) => void) => () => void;
   };
   settings: {

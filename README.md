@@ -30,15 +30,18 @@ telemetry, no account and no vendor lock-in.
 | | |
 | :--- | :--- |
 | 🖥️ **Multi-cluster** | Reads your existing `~/.kube/config` (including `KUBECONFIG`), supports token, client-certificate and `exec` credential plugins with token caching. |
-| 📋 **Live resource tables** | Watch-backed lists with sorting, namespace scoping, filtering and per-kind columns. Status colours follow Kubernetes semantics, not just `phase`. |
-| 🔍 **Details drawer** | Overview, labels/annotations, containers, conditions and related events for any object. |
+| 📥 **Paste a kubeconfig** | Paste YAML directly (or use `Paste from clipboard` / `Ctrl+Enter`) instead of hunting for a file. It is validated, saved to your KubePilot profile with `0600` permissions, and colliding context names are renamed in the imported copy — your original files are never touched. |
+| 📋 **Live resource tables** | Watch-backed lists with sorting, namespace scoping, filtering and per-kind columns. Status colours follow Kubernetes semantics, not just `phase`. A **single click** on any row opens its details. |
+| 🔍 **Details drawer** | Overview, labels/annotations, containers, conditions and related events for any object. The active sub-tab (YAML / Events) is kept when you re-open the same object. |
 | ✏️ **YAML editing** | Monaco editor with server-side apply and `fieldManager`. Server-owned metadata is stripped automatically, so applying an edited manifest never trips over `managedFields`. |
 | ⚖️ **Split compare** | A read-only diff editor with two independent cluster → kind → namespace → object selectors — compare two YAMLs inside one cluster or across two different contexts. |
 | 📜 **Logs** | Streaming, pause, wrap, clear, multi-container pods. |
 | ⌨️ **Terminal** | A real `kubectl exec` shell over WebSocket (`v5.channel.k8s.io`) with resize, and graceful handling of distroless images that have no shell. |
 | 🚀 **Apply / scale / restart** | Server-side apply, the `/scale` subresource, rollout restart via the pod-template annotation. |
 | 📊 **Metrics** | CPU and memory for pods and nodes from `metrics.k8s.io`, with capacity fallbacks. |
-| 🔌 **Port forwarding** | Managed `kubectl port-forward` children with live state. |
+| 🔌 **Port forwarding** | Managed `kubectl port-forward` children with live state, unique tunnel ids and local-port conflict detection. The details sidebar lists every tunnel on that Pod/Service with a **Stop** button; a global panel shows all tunnels with **Stop all**. |
+| 🗂️ **Close all tabs** | One button, `Ctrl/Cmd + Shift + W`, or a palette action. It also clears the details drawer and the dock, and asks for confirmation when an unsaved YAML draft would be lost. |
+| 🔔 **Notification center** | Success and error cards with a title, timestamp and expandable technical details. Errors stay until you dismiss them; the status-bar bell keeps the whole session history with All / Errors / Successes filters. |
 | ➕ **Create from templates** | The `+` button offers a YAML scaffold for the resource kind you're looking at — 33 kinds covered. |
 | 🎨 **Command palette & themes** | `Ctrl/Cmd + K` palette, hotbar pinning, light and dark themes. |
 
@@ -86,7 +89,9 @@ npm run typecheck  # tsc --noEmit (strict mode)
 npm run dist       # Windows NSIS installer
 ```
 
-Point it at any cluster by adding your kubeconfig in **Settings → Add kubeconfig**.
+Point it at any cluster with the **`+` button in the cluster rail** (or **Settings → Paste YAML / Add file**).
+You can paste the contents of a kubeconfig directly — no need to move the file onto disk first.
+Click a resource row once to open its details; right-click for actions such as Port forward.
 
 ## Build installers
 
@@ -156,7 +161,9 @@ git push origin main   # no remote yet? git remote add origin <url>
 | `Ctrl/Cmd + Shift + P` | Command palette (alternative) |
 | `Ctrl/Cmd + ,` | Preferences |
 | `Ctrl/Cmd + W` | Close active tab |
-| `Esc` | Dismiss overlay / close drawer |
+| `Ctrl/Cmd + Shift + W` | Close all tabs (confirms if a YAML draft is unsaved) |
+| `Ctrl/Cmd + Enter` | Import the pasted kubeconfig |
+| `Esc` | Close the topmost dialog / menu, or the details drawer when nothing else is open |
 
 ## Architecture
 
@@ -165,14 +172,18 @@ src/
   main/            Electron main process
     kube/
       config.ts    kubeconfig discovery, parsing, exec credential plugins
+      paste.ts     validation + context-collision rules for pasted kubeconfigs
       client.ts    native Kubernetes HTTP/WS client (node:https, node:http, ws)
       backend.ts   ClusterBackend interface
       live.ts      LiveBackend — talks to a real API server
       registry.ts  cluster registry + persisted settings
-    ipc.ts         every IPC channel, one place
+    ipc.ts         every IPC channel, one place (incl. port-forward processes)
     index.ts       window lifecycle
   preload/         contextBridge surface (window.kube)
   renderer/        React 19 + Zustand UI
+    state/rules.ts pure notification / port-forward / draft rules
+    components/    AddKubeconfigModal, Notifications, PortForwardDialog,
+                   PortForwardPanel, DetailDrawer, ...
   shared/          DTOs shared across all three processes
 ```
 
@@ -190,10 +201,27 @@ Design notes:
 ## Testing
 
 ```bash
-node tools/e2e-live.mjs <devtools-port>  # 30 checks against a running app + real cluster
-npm run verify:mac                       # packaging-config validation
 npm run typecheck                        # strict TypeScript
+npm run verify:mac                       # 26 packaging-config checks
+npm run verify:features                  # 23 pure-logic + wiring checks
+npm run verify:live-ui                   # 22 live UI checks (see below)
+node tools/e2e-live.mjs <devtools-port>  # 30 checks against a running app + real cluster
 ```
+
+`verify:live-ui` drives the **real renderer** over Chrome DevTools Protocol, so it needs a
+built app running with remote debugging:
+
+```bash
+npm run build
+electron --remote-debugging-port=9333 --user-data-dir=.tmp-verify .
+npm run verify:live-ui                   # LENS_CDP_PORT defaults to 9222
+```
+
+It starts a tiny in-process mock Kubernetes API, so no real cluster is required. It covers
+pasted kubeconfig import (valid + invalid), single-click details, the port-forward sidebar
+and its Stop button, duplicate-port detection, notifications and their history, close-all-tabs
+(including the shortcut and confirmation), and the command palette. Everything it creates —
+one kubeconfig and a few error-state tunnels — is removed again at the end.
 
 ## Status
 

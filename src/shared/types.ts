@@ -155,6 +155,20 @@ export interface PortForwardState {
   remotePort: number;
   status: 'starting' | 'active' | 'error' | 'stopped';
   error?: string;
+  /** When the tunnel was started (ms epoch), for the UI's elapsed display. */
+  startedAt?: number;
+}
+
+/** Result of importing a kubeconfig, either from a file dialog or pasted text. */
+export interface KubeconfigImportResult {
+  /** Every kubeconfig path the app now reads. */
+  paths: string[];
+  /** Path written by a paste import; undefined for a file-dialog import. */
+  path?: string;
+  /** Connectable context names the import contributed. */
+  contexts: string[];
+  /** Non-fatal notes (renamed contexts, skipped documents, ...). */
+  warnings: string[];
 }
 
 export interface ApplyResult {

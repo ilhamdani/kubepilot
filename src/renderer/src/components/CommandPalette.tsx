@@ -26,6 +26,10 @@ export function CommandPalette() {
   const openSettingsTab = useApp((s) => s.openSettingsTab);
   const activateTab = useApp((s) => s.activateTab);
   const setActiveCluster = useApp((s) => s.setActiveCluster);
+  const requestCloseAllTabs = useApp((s) => s.requestCloseAllTabs);
+  const toggleKubeconfigModal = useApp((s) => s.toggleKubeconfigModal);
+  const togglePortForwards = useApp((s) => s.togglePortForwards);
+  const toggleNotifications = useApp((s) => s.toggleNotifications);
   const activeResource = useActiveResource();
 
   const [query, setQuery] = useState('');
@@ -117,6 +121,34 @@ export function CommandPalette() {
       });
     }
     list.push({
+      id: 'action:close-all',
+      label: 'Close all tabs',
+      hint: tabs.length ? `${tabs.length} open · Ctrl+Shift+W` : 'no tabs open',
+      section: 'Actions',
+      run: () => requestCloseAllTabs(),
+    });
+    list.push({
+      id: 'action:kubeconfig',
+      label: 'Paste / add kubeconfig',
+      hint: 'import a cluster',
+      section: 'Actions',
+      run: () => toggleKubeconfigModal(true),
+    });
+    list.push({
+      id: 'action:port-forwards',
+      label: 'Port forwards',
+      hint: 'view and stop running tunnels',
+      section: 'Actions',
+      run: () => togglePortForwards(true),
+    });
+    list.push({
+      id: 'action:notifications',
+      label: 'Notifications',
+      hint: 'session history',
+      section: 'Actions',
+      run: () => toggleNotifications(true),
+    });
+    list.push({
       id: 'action:settings',
       label: 'Preferences',
       section: 'Actions',
@@ -124,7 +156,7 @@ export function CommandPalette() {
     });
 
     return list;
-  }, [clusters, activeClusterId, activeResource, tabs, openResourceTab, openOverviewTab, openCreateTab, openSplitTab, openSettingsTab, activateTab, setActiveCluster]);
+  }, [clusters, activeClusterId, activeResource, tabs, openResourceTab, openOverviewTab, openCreateTab, openSplitTab, openSettingsTab, activateTab, setActiveCluster, requestCloseAllTabs, toggleKubeconfigModal, togglePortForwards, toggleNotifications]);
 
   const filtered = useMemo(() => {
     const needle = query.trim().toLowerCase();

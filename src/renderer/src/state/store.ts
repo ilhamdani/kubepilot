@@ -5,12 +5,24 @@ import type {
   ClusterState,
   PodMetric,
   NodeMetric,
+  PortForwardRequest,
+  PortForwardState,
   ResourceRef,
   StoredSettings,
   HotbarItem,
 } from '@shared/types';
 import { api } from '../api';
 import { defaultTemplate, templateFor, type CreateTemplate } from '../lib/templates';
+import {
+  MAX_NOTICE_HISTORY,
+  MAX_VISIBLE_NOTICES,
+  activeForwards,
+  applyPortForwardState,
+  makeNotice,
+  unsavedDraftCount,
+  type Notice,
+  type NoticeOptions,
+} from './rules';
 
 export interface ResourceTabRef {
   id: string;
@@ -56,11 +68,8 @@ export interface DockTab {
   container?: string;
 }
 
-export interface Toast {
-  id: string;
-  tone: 'info' | 'success' | 'error';
-  message: string;
-}
+/** A notification card. The same object appears in the live stack and history. */
+export type Toast = Notice;
 
 interface AppStore {
   ready: boolean;
@@ -89,7 +98,16 @@ interface AppStore {
   };
 
   paletteOpen: boolean;
+  /** Currently visible notification cards. */
   toasts: Toast[];
+  /** Every notification this session, newest first, including dismissed ones. */
+  notifications: Toast[];
+  notificationsOpen: boolean;
+  kubeconfigModalOpen: boolean;
+  portForwardsOpen: boolean;
+  portForwards: PortForwardState[];
+  /** True while the "unsaved drafts" confirmation for Close all is open. */
+  closeAllTabsConfirm: boolean;
 
   init: () => Promise<void>;
   refreshClusters: () => Promise<void>;
@@ -127,6 +145,12 @@ interface AppStore {
   setSplitSide: (tabId: string, side: 'left' | 'right', ref?: ResourceRef) => void;
   activateTab: (tabId: string) => void;
   closeTab: (tabId: string) => void;
+  /** Closes every main tab, the detail drawer and all dock (logs/terminal) tabs. */
+  closeAllTabs: () => void;
+  /** Asks for confirmation first when create tabs hold unsaved YAML. */
+  requestCloseAllTabs: () => void;
+  cancelCloseAllTabs: () => void;
+  confirmCloseAllTabs: () => void;
 
   openDetails: (clusterId: string, ref: ResourceRef, kindId: string) => void;
   closeDetails: () => void;
@@ -142,8 +166,18 @@ interface AppStore {
 
   refreshMetrics: () => Promise<void>;
   togglePalette: (open?: boolean) => void;
-  toast: (message: string, tone?: Toast['tone']) => void;
+  toggleNotifications: (open?: boolean) => void;
+  toggleKubeconfigModal: (open?: boolean) => void;
+  togglePortForwards: (open?: boolean) => void;
+  toast: (message: string, tone?: Toast['tone'], options?: NoticeOptions) => void;
   dismissToast: (id: string) => void;
+  clearNotifications: () => void;
+  refreshPortForwards: () => Promise<void>;
+  startPortForward: (req: PortForwardRequest) => Promise<PortForwardState>;
+  stopPortForward: (id: string) => Promise<void>;
+  /** Stops a specific set of tunnels (e.g. those of one resource) with one toast. */
+  stopPortForwards: (ids: string[]) => Promise<void>;
+  stopAllPortForwards: () => Promise<void>;
   setSettings: (patch: Partial<StoredSettings>) => Promise<void>;
   toggleHotbar: (item: HotbarItem) => Promise<void>;
 }
@@ -160,6 +194,8 @@ const DEFAULT_SETTINGS: StoredSettings = {
 };
 
 let metricsTimer: ReturnType<typeof setInterval> | undefined;
+// kubectl can emit several stderr chunks for one failure; report it once.
+const announcedForwardErrors = new Set<string>();
 
 export const useApp = create<AppStore>((set, get) => ({
   ready: false,
@@ -171,6 +207,12 @@ export const useApp = create<AppStore>((set, get) => ({
   metrics: { pods: new Map(), nodes: new Map(), available: true },
   paletteOpen: false,
   toasts: [],
+  notifications: [],
+  notificationsOpen: false,
+  kubeconfigModalOpen: false,
+  portForwardsOpen: false,
+  portForwards: [],
+  closeAllTabsConfirm: false,
 
   async init() {
     const [info, clusters, states, settings] = await Promise.all([
@@ -187,6 +229,30 @@ export const useApp = create<AppStore>((set, get) => ({
 
     api.clusters.onState((state) => {
       set((prev) => ({ states: { ...prev.states, [state.cluster.id]: state } }));
+      if (state.status === 'error') {
+        get().toast(`Could not connect to ${state.cluster.displayName}.`, 'error', {
+          title: 'Cluster connection failed',
+          detail: state.error,
+        });
+      }
+    });
+
+    // Port forwards are owned by the main process (kubectl children). Pick up
+    // anything already running, then follow every state change from there.
+    void api.portForward
+      .list()
+      .then((list) => set({ portForwards: list }))
+      .catch(() => undefined);
+    api.portForward.onState((state) => {
+      set((prev) => ({ portForwards: applyPortForwardState(prev.portForwards, state) }));
+      if (state.status === 'error' && !announcedForwardErrors.has(state.id)) {
+        announcedForwardErrors.add(state.id);
+        get().toast(`Port forward to ${state.name} failed.`, 'error', {
+          title: 'Port forward failed',
+          detail: state.error,
+        });
+      }
+      if (state.status === 'stopped') announcedForwardErrors.delete(state.id);
     });
 
     // Open the first cluster that has a kubeconfig so the app is useful
@@ -356,8 +422,48 @@ export const useApp = create<AppStore>((set, get) => ({
     set({ tabs: next, activeTabId });
   },
 
+  closeAllTabs() {
+    set((prev) => ({
+      tabs: [],
+      activeTabId: undefined,
+      details: undefined,
+      // Dock tabs unmount their log/exec streams, so clearing them here also
+      // releases those sessions instead of leaving them running invisibly.
+      dock: { ...prev.dock, tabs: [], activeTabId: undefined, open: false },
+    }));
+  },
+
+  requestCloseAllTabs() {
+    if (!get().tabs.length) return;
+    if (unsavedDraftCount(get().tabs) > 0) {
+      set({ closeAllTabsConfirm: true });
+      return;
+    }
+    get().closeAllTabs();
+  },
+
+  cancelCloseAllTabs() {
+    set({ closeAllTabsConfirm: false });
+  },
+
+  confirmCloseAllTabs() {
+    set({ closeAllTabsConfirm: false });
+    get().closeAllTabs();
+  },
+
   openDetails(clusterId, ref, kindId) {
-    set({ details: { clusterId, ref, kindId, tab: 'overview' } });
+    const current = get().details;
+    // A single click opens details. Clicking the same row again (or a stray
+    // second click of a double-click) must not yank the user back from the
+    // YAML/Events tab they were reading.
+    const sameTarget =
+      current &&
+      current.clusterId === clusterId &&
+      current.kindId === kindId &&
+      current.ref.plural === ref.plural &&
+      current.ref.name === ref.name &&
+      (current.ref.namespace ?? '') === (ref.namespace ?? '');
+    set({ details: { clusterId, ref, kindId, tab: sameTarget ? current!.tab : 'overview' } });
   },
 
   closeDetails() {
@@ -470,14 +576,117 @@ export const useApp = create<AppStore>((set, get) => ({
     set((prev) => ({ paletteOpen: open ?? !prev.paletteOpen }));
   },
 
-  toast(message, tone = 'info') {
+  toggleNotifications(open) {
+    const next = open ?? !get().notificationsOpen;
+    set((prev) => ({
+      notificationsOpen: next,
+      // Opening the centre marks everything as read, but the cards already on
+      // screen keep their own auto-dismiss timers.
+      notifications: next ? prev.notifications.map((n) => ({ ...n, read: true })) : prev.notifications,
+    }));
+  },
+
+  toggleKubeconfigModal(open) {
+    set((prev) => ({ kubeconfigModalOpen: open ?? !prev.kubeconfigModalOpen }));
+  },
+
+  togglePortForwards(open) {
+    set((prev) => ({ portForwardsOpen: open ?? !prev.portForwardsOpen }));
+  },
+
+  toast(message, tone = 'info', options = {}) {
     const id = uid();
-    set((prev) => ({ toasts: [...prev.toasts, { id, message, tone }] }));
-    setTimeout(() => get().dismissToast(id), 4500);
+    const notice = makeNotice(id, message, tone, options);
+    set((prev) => ({
+      toasts: [...prev.toasts, notice].slice(-MAX_VISIBLE_NOTICES),
+      notifications: [notice, ...prev.notifications].slice(0, MAX_NOTICE_HISTORY),
+    }));
+    if (notice.duration > 0) {
+      setTimeout(() => get().dismissToast(id), notice.duration);
+    }
   },
 
   dismissToast(id) {
     set((prev) => ({ toasts: prev.toasts.filter((t) => t.id !== id) }));
+  },
+
+  clearNotifications() {
+    set({ toasts: [], notifications: [] });
+  },
+
+  async refreshPortForwards() {
+    const list = await api.portForward.list();
+    set({ portForwards: list });
+  },
+
+  async startPortForward(req) {
+    const state = await api.portForward.start(req);
+    // The main process broadcasts too; this makes the UI responsive even if
+    // the event arrives a tick later (and keeps the local list deterministic).
+    set((prev) => ({ portForwards: applyPortForwardState(prev.portForwards, state) }));
+    if (state.status === 'error' && !announcedForwardErrors.has(state.id)) {
+      announcedForwardErrors.add(state.id);
+      get().toast('Port forward could not be started.', 'error', {
+        title: 'Port forward failed',
+        detail: state.error,
+      });
+    }
+    return state;
+  },
+
+  async stopPortForward(id) {
+    const forward = get().portForwards.find((entry) => entry.id === id);
+    try {
+      await api.portForward.stop(id);
+      set((prev) => ({ portForwards: prev.portForwards.filter((entry) => entry.id !== id) }));
+      get().toast(
+        forward ? `Stopped localhost:${forward.localPort} → ${forward.name}` : 'Port forward stopped.',
+        'success',
+        { title: 'Port forward stopped' },
+      );
+    } catch (err: any) {
+      get().toast(err?.message ?? 'Could not stop the port forward', 'error', {
+        title: 'Could not stop port forward',
+        detail: err?.message,
+      });
+    }
+  },
+
+  async stopPortForwards(ids) {
+    if (!ids.length) return;
+    const targets = new Set(ids);
+    try {
+      await Promise.all([...targets].map((id) => api.portForward.stop(id)));
+      set((prev) => ({ portForwards: prev.portForwards.filter((entry) => !targets.has(entry.id)) }));
+      get().toast(
+        `Stopped ${targets.size} port forward${targets.size === 1 ? '' : 's'}.`,
+        'success',
+        { title: 'Port forwards stopped' },
+      );
+    } catch (err: any) {
+      get().toast(err?.message ?? 'Could not stop port forwards', 'error', {
+        title: 'Could not stop port forwards',
+        detail: err?.message,
+      });
+    }
+  },
+
+  async stopAllPortForwards() {
+    const running = activeForwards(get().portForwards).length;
+    try {
+      await api.portForward.stopAll();
+      set({ portForwards: [] });
+      get().toast(
+        running ? `Stopped ${running} port forward${running === 1 ? '' : 's'}.` : 'No port forwards were running.',
+        'success',
+        { title: 'Port forwards stopped' },
+      );
+    } catch (err: any) {
+      get().toast(err?.message ?? 'Could not stop port forwards', 'error', {
+        title: 'Could not stop port forwards',
+        detail: err?.message,
+      });
+    }
   },
 
   async setSettings(patch) {

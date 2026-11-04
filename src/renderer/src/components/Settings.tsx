@@ -7,26 +7,50 @@ export function Settings() {
   const setSettings = useApp((s) => s.setSettings);
   const info = useApp((s) => s.info);
   const refreshClusters = useApp((s) => s.refreshClusters);
+  const toggleKubeconfigModal = useApp((s) => s.toggleKubeconfigModal);
   const toast = useApp((s) => s.toast);
+  const kubeconfigModalOpen = useApp((s) => s.kubeconfigModalOpen);
   const [paths, setPaths] = useState<string[]>([]);
 
+  // Refresh on open *and* close: closing is what a successful paste import does.
   useEffect(() => {
     void api.kubeconfig.paths().then(setPaths);
-  }, []);
+  }, [kubeconfigModalOpen]);
 
   const addKubeconfig = async () => {
-    const result = await api.kubeconfig.add();
-    setPaths(result.paths);
-    if (result.added.length) {
-      await refreshClusters();
-      toast(`Added ${result.added.length} kubeconfig file(s)`, 'success');
+    try {
+      const result = await api.kubeconfig.add();
+      setPaths(result.paths);
+      if (result.added.length) {
+        await refreshClusters();
+        toast(`${result.added.length} kubeconfig file${result.added.length === 1 ? '' : 's'} added.`, 'success', {
+          title: 'Kubeconfig added',
+          detail: result.added.join('\n'),
+        });
+      }
+    } catch (err: any) {
+      toast(err?.message ?? 'Could not add the kubeconfig file.', 'error', {
+        title: 'Could not add kubeconfig',
+        detail: err?.message,
+      });
     }
   };
 
   const removePath = async (path: string) => {
-    const next = await api.kubeconfig.remove(path);
-    setPaths(next);
-    await refreshClusters();
+    try {
+      const next = await api.kubeconfig.remove(path);
+      setPaths(next);
+      await refreshClusters();
+      toast('Kubeconfig removed from KubePilot.', 'success', {
+        title: 'Kubeconfig removed',
+        detail: path,
+      });
+    } catch (err: any) {
+      toast(err?.message ?? 'Could not remove the kubeconfig.', 'error', {
+        title: 'Could not remove kubeconfig',
+        detail: err?.message,
+      });
+    }
   };
 
   return (
@@ -74,11 +98,18 @@ export function Settings() {
         <div className="card">
           <div className="card-title">
             <span>Kubeconfig files</span>
-            <button className="btn" onClick={() => void addKubeconfig()}>
-              Add file
-            </button>
+            <span style={{ display: 'flex', gap: 6 }}>
+              <button className="btn btn--small" onClick={() => toggleKubeconfigModal(true)}>
+                Paste YAML
+              </button>
+              <button className="btn btn--small" onClick={() => void addKubeconfig()}>
+                Add file
+              </button>
+            </span>
           </div>
-          {paths.length === 0 && <div className="hint">No kubeconfig found. Add one to connect a cluster.</div>}
+          {paths.length === 0 && (
+            <div className="hint">No kubeconfig found. Paste one or add a file to connect a cluster.</div>
+          )}
           <div className="detail-list">
             {paths.map((path) => (
               <div className="detail-row" key={path}>

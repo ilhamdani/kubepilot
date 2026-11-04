@@ -12,7 +12,9 @@ import { DetailDrawer } from './components/DetailDrawer';
 import { Dock } from './components/Dock';
 import { StatusBar } from './components/StatusBar';
 import { CommandPalette } from './components/CommandPalette';
-import { api } from './api';
+import { AddKubeconfigModal } from './components/AddKubeconfigModal';
+import { PortForwardPanel } from './components/PortForwardPanel';
+import { NotificationCenter, Toasts } from './components/Notifications';
 
 export function App() {
   const ready = useApp((s) => s.ready);
@@ -24,14 +26,13 @@ export function App() {
   const tabs = useApp((s) => s.tabs);
   const activeTabId = useApp((s) => s.activeTabId);
   const details = useApp((s) => s.details);
-  const toasts = useApp((s) => s.toasts);
   const setActiveCluster = useApp((s) => s.setActiveCluster);
   const closeTab = useApp((s) => s.closeTab);
+  const requestCloseAllTabs = useApp((s) => s.requestCloseAllTabs);
   const togglePalette = useApp((s) => s.togglePalette);
+  const toggleKubeconfigModal = useApp((s) => s.toggleKubeconfigModal);
   const closeDetails = useApp((s) => s.closeDetails);
   const openSettingsTab = useApp((s) => s.openSettingsTab);
-  const toast = useApp((s) => s.toast);
-  const refreshClusters = useApp((s) => s.refreshClusters);
 
   useEffect(() => {
     void init();
@@ -50,6 +51,9 @@ export function App() {
       } else if (mod && event.shiftKey && event.key.toLowerCase() === 'p') {
         event.preventDefault();
         togglePalette(true);
+      } else if (mod && event.shiftKey && event.key.toLowerCase() === 'w') {
+        event.preventDefault();
+        requestCloseAllTabs();
       } else if (mod && event.key.toLowerCase() === 'w') {
         const state = useApp.getState();
         if (state.activeTabId) {
@@ -57,7 +61,11 @@ export function App() {
           closeTab(state.activeTabId);
         }
       } else if (event.key === 'Escape') {
-        closeDetails();
+        // A modal, the palette or a context menu owns Escape while it is on
+        // screen. Their own handler closes them; closing the drawer behind
+        // them at the same time would lose the resource the user is reading.
+        const overlay = document.querySelector('.modal-overlay, .palette-overlay, .context-menu');
+        if (!overlay) closeDetails();
       } else if (mod && event.key === ',') {
         event.preventDefault();
         openSettingsTab();
@@ -65,18 +73,10 @@ export function App() {
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [togglePalette, closeTab, closeDetails, openSettingsTab]);
+  }, [togglePalette, closeTab, requestCloseAllTabs, closeDetails, openSettingsTab]);
 
   const activeTab = tabs.find((tab) => tab.id === activeTabId);
   const activeState = activeClusterId ? states[activeClusterId] : undefined;
-
-  const addCluster = async () => {
-    const result = await api.kubeconfig.add();
-    if (result.added.length) {
-      await refreshClusters();
-      toast(`Imported ${result.added.length} kubeconfig file(s)`, 'success');
-    }
-  };
 
   if (!ready) {
     return (
@@ -96,7 +96,7 @@ export function App() {
         states={states}
         activeClusterId={activeClusterId}
         onSelect={(id) => void setActiveCluster(id)}
-        onAddCluster={() => void addCluster()}
+        onAddCluster={() => toggleKubeconfigModal(true)}
         onOpenSettings={openSettingsTab}
         onOpenPalette={() => togglePalette(true)}
       />
@@ -170,11 +170,12 @@ export function App() {
               <h2>No cluster yet</h2>
               <p>
                 KubePilot reads contexts from your kubeconfig. None were found in{' '}
-                <span className="mono">~/.kube/config</span> or the paths listed in Preferences.
+                <span className="mono">~/.kube/config</span> or the paths listed in Preferences. Paste the
+                YAML directly or pick a file.
               </p>
               <div className="welcome-actions">
-                <button className="btn btn--primary" onClick={() => void addCluster()}>
-                  Add kubeconfig
+                <button className="btn btn--primary" onClick={() => toggleKubeconfigModal(true)}>
+                  Paste / add kubeconfig
                 </button>
                 <button className="btn btn--ghost" onClick={openSettingsTab}>
                   Preferences
@@ -207,18 +208,10 @@ export function App() {
       </div>
 
       <CommandPalette />
-
-      <div className="toasts">
-        {toasts.map((item) => (
-          <div
-            key={item.id}
-            className={`toast ${item.tone === 'error' ? 'toast--error' : item.tone === 'success' ? 'toast--success' : ''}`}
-            onClick={() => useApp.getState().dismissToast(item.id)}
-          >
-            {item.message}
-          </div>
-        ))}
-      </div>
+      <AddKubeconfigModal />
+      <PortForwardPanel />
+      <NotificationCenter />
+      <Toasts />
     </div>
   );
 }

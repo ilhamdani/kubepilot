@@ -5,9 +5,12 @@ import { findKindById } from '../lib/catalog';
 import { formatAge, formatAgeLong, formatDateTime, formatMemory, statusOf } from '../lib/format';
 import { dumpObject } from '../lib/yaml';
 import { useKubeList } from '../state/lists';
+import { activeForwards } from '../state/rules';
 import { useApp } from '../state/store';
 import { ResourceIcon, StatusBrick } from './Icons';
 import { Modal } from './Overlays';
+import { PortForwardDialog } from './PortForwardDialog';
+import { PortForwardRow } from './PortForwardPanel';
 import { YamlEditor } from './YamlEditor';
 
 export function DetailDrawer() {
@@ -17,6 +20,9 @@ export function DetailDrawer() {
   const openLogs = useApp((s) => s.openLogs);
   const openTerminal = useApp((s) => s.openTerminal);
   const openSplitTab = useApp((s) => s.openSplitTab);
+  const portForwards = useApp((s) => s.portForwards);
+  const stopPortForwards = useApp((s) => s.stopPortForwards);
+  const togglePortForwards = useApp((s) => s.togglePortForwards);
   const toast = useApp((s) => s.toast);
 
   const [object, setObject] = useState<KubeObject | null>(null);
@@ -25,7 +31,18 @@ export function DetailDrawer() {
   const [draft, setDraft] = useState<string>('');
   const [dirty, setDirty] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [forwarding, setForwarding] = useState(false);
   const [width, setWidth] = useState<number>(520);
+
+  // Floating notifications are anchored to the right edge. Publish the
+  // drawer's (resizable) width so they can sit beside it instead of on top of
+  // the port-forward list the user is trying to read.
+  useEffect(() => {
+    document.body.style.setProperty('--kp-drawer-width', `${width}px`);
+    return () => {
+      document.body.style.removeProperty('--kp-drawer-width');
+    };
+  }, [width]);
 
   const ref = details?.ref;
   const kindDef = details ? findKindById(details.kindId) : undefined;
@@ -84,6 +101,15 @@ export function DetailDrawer() {
   if (!details || !ref) return null;
 
   const status = object ? statusOf(object) : { text: 'Loading', tone: 'vague' as const };
+  // Every tunnel that targets this exact object (a pod can have several).
+  const myForwards = portForwards.filter(
+    (forward) =>
+      forward.clusterId === details.clusterId &&
+      forward.name === ref.name &&
+      (forward.namespace ?? '') === (ref.namespace ?? ''),
+  );
+  const runningCount = activeForwards(myForwards).length;
+  const canForward = ref.kind === 'Pod' || ref.kind === 'Service';
 
   const save = async () => {
     try {
@@ -92,24 +118,35 @@ export function DetailDrawer() {
         yaml: draft,
         kindMap: { [object?.kind ?? ref.kind]: { plural: ref.plural, namespaced: ref.namespaced } },
       });
-      toast(`${ref.kind} ${ref.name} updated`, 'success');
+      toast(`${ref.kind} ${ref.name} was updated.`, 'success', {
+        title: 'YAML applied',
+        detail: `${ref.namespace ?? 'cluster'}/${ref.name}`,
+      });
       setDirty(false);
       const fresh = await api.resources.get(ref);
       setObject(fresh);
       setDraft(dumpObject(fresh));
     } catch (err: any) {
-      toast(err?.message ?? 'Apply failed', 'error');
+      toast(err?.message ?? 'Apply failed', 'error', {
+        title: 'Could not apply YAML',
+        detail: err?.message,
+      });
     }
   };
 
   const remove = async () => {
     try {
       await api.resources.remove(ref);
-      toast(`${ref.kind} ${ref.name} deleted`, 'success');
+      toast(`${ref.kind} ${ref.name} was deleted.`, 'success', {
+        title: 'Resource deleted',
+      });
       setConfirmDelete(false);
       closeDetails();
     } catch (err: any) {
-      toast(err?.message ?? 'Delete failed', 'error');
+      toast(err?.message ?? 'Delete failed', 'error', {
+        title: 'Could not delete resource',
+        detail: err?.message,
+      });
     }
   };
 
@@ -149,6 +186,18 @@ export function DetailDrawer() {
           >
             {status.text}
           </span>
+          {myForwards.length > 0 && (
+            <button
+              className={`pf-badge ${runningCount > 0 ? 'pf-badge--live' : ''}`}
+              title={`${myForwards.length} port forward${myForwards.length === 1 ? '' : 's'} on this resource — click to manage`}
+              onClick={() => setDetailsTab('overview')}
+            >
+              <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M2 8h9M8 5l3 3-3 3M13 4v8" />
+              </svg>
+              {myForwards.length} {myForwards.length === 1 ? 'forward' : 'forwards'}
+            </button>
+          )}
           <button className="icon-btn" onClick={closeDetails} title="Close">
             <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
               <path d="m3 3 6 6M9 3l-6 6" />
@@ -174,6 +223,47 @@ export function DetailDrawer() {
           {loading && <div className="hint">Loading…</div>}
           {error && <div className="warning-box">{error}</div>}
           {object && <Overview object={object} ref_={ref} kindId={details.kindId} />}
+
+          <div className="section" style={{ marginTop: 18 }}>
+            <div className="section-title">
+              <span>Port forwards</span>
+              {runningCount > 0 && <span className="pf-live-label">{runningCount} running</span>}
+              <span style={{ flex: 1 }} />
+              {canForward && (
+                <button
+                  className="btn btn--ghost btn--small"
+                  disabled={!object}
+                  title={object ? 'Start a port forward to this resource' : 'Wait for the resource to load'}
+                  onClick={() => setForwarding(true)}
+                >
+                  New…
+                </button>
+              )}
+              {myForwards.length > 1 && (
+                <button
+                  className="btn btn--ghost btn--small"
+                  onClick={() => void stopPortForwards(myForwards.map((entry) => entry.id))}
+                >
+                  Stop all
+                </button>
+              )}
+            </div>
+            {myForwards.length === 0 ? (
+              <div className="hint">
+                No port forward is running for this {ref.kind.toLowerCase()}.
+                {canForward ? ' Use “New…” to start one.' : ''}
+              </div>
+            ) : (
+              <div className="pf-list">
+                {myForwards.map((forward) => (
+                  <PortForwardRow key={forward.id} forward={forward} />
+                ))}
+              </div>
+            )}
+            <button className="notice-link" onClick={() => togglePortForwards(true)}>
+              View every port forward →
+            </button>
+          </div>
 
           <div className="section" style={{ marginTop: 18 }}>
             <div className="section-title">Actions</div>
@@ -208,12 +298,26 @@ export function DetailDrawer() {
                   </button>
                 </>
               )}
+              {canForward && (
+                <button className="btn" disabled={!object} onClick={() => setForwarding(true)}>
+                  Port forward
+                </button>
+              )}
               {kindDef?.restartable && (
                 <button
                   className="btn"
                   onClick={async () => {
-                    await api.resources.restart(ref);
-                    toast('Rollout restart requested', 'success');
+                    try {
+                      await api.resources.restart(ref);
+                      toast(`Rollout restart requested for ${ref.name}.`, 'success', {
+                        title: 'Rollout restarted',
+                      });
+                    } catch (err: any) {
+                      toast(err?.message ?? 'Restart failed', 'error', {
+                        title: 'Rollout restart failed',
+                        detail: err?.message,
+                      });
+                    }
                   }}
                 >
                   Restart
@@ -320,6 +424,14 @@ export function DetailDrawer() {
             Delete <strong>{ref.name}</strong>? This cannot be undone.
           </div>
         </Modal>
+      )}
+
+      {forwarding && object && (
+        <PortForwardDialog
+          object={object}
+          clusterId={details.clusterId}
+          onClose={() => setForwarding(false)}
+        />
       )}
     </div>
   );

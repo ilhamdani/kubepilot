@@ -41,6 +41,8 @@
     "dist:mac:arm64": "npm run build && electron-builder --mac --arm64",
     "dist:mac:x64": "npm run build && electron-builder --mac --x64",
     "verify:mac": "node tools/verify-mac-config.mjs",
+    "verify:features": "node --experimental-strip-types tools/verify-features.mjs",
+    "verify:live-ui": "node tools/verify-live-ui.mjs",
     "site": "node tools/serve.mjs 4173 site"
   },
   "dependencies": {

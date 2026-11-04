@@ -1,5 +1,7 @@
 import { isCreateable } from '../lib/templates';
+import { unsavedDraftCount } from '../state/rules';
 import { useActiveResource, useApp } from '../state/store';
+import { Modal } from './Overlays';
 import { CloseIcon, ResourceIcon } from './Icons';
 
 export function TabBar() {
@@ -9,6 +11,11 @@ export function TabBar() {
   const closeTab = useApp((s) => s.closeTab);
   const activeClusterId = useApp((s) => s.activeClusterId);
   const openCreateTab = useApp((s) => s.openCreateTab);
+  const requestCloseAllTabs = useApp((s) => s.requestCloseAllTabs);
+  const confirmOpen = useApp((s) => s.closeAllTabsConfirm);
+  const cancelCloseAllTabs = useApp((s) => s.cancelCloseAllTabs);
+  const confirmCloseAllTabs = useApp((s) => s.confirmCloseAllTabs);
+  const drafts = unsavedDraftCount(tabs);
   const activeResource = useActiveResource();
 
   // `+` creates whatever the current list shows; kinds the cluster owns
@@ -21,6 +28,7 @@ export function TabBar() {
       : 'Create resource from YAML';
 
   return (
+    <>
     <div className="tabs">
       {tabs.map((tab) => (
         <div
@@ -86,7 +94,42 @@ export function TabBar() {
             </svg>
           </button>
         )}
+        <button
+          className="icon-btn"
+          title={`Close all tabs (${tabs.length}) — Ctrl+Shift+W`}
+          disabled={tabs.length === 0}
+          onClick={requestCloseAllTabs}
+        >
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round">
+            <path d="M2.5 4.5h11M2.5 11.5h11" />
+            <path d="m6 2.5 3 3M9 2.5l-3 3M6 10.5l3 3M9 10.5l-3 3" />
+          </svg>
+        </button>
       </div>
     </div>
+
+    {confirmOpen && (
+      <Modal
+        title="Close all tabs?"
+        onClose={cancelCloseAllTabs}
+        footer={
+          <>
+            <button className="btn btn--ghost" onClick={cancelCloseAllTabs}>
+              Keep tabs open
+            </button>
+            <button className="btn btn--danger" onClick={confirmCloseAllTabs}>
+              Close all tabs
+            </button>
+          </>
+        }
+      >
+        <div>
+          {drafts} unsaved YAML {drafts === 1 ? 'draft' : 'drafts'} will be lost. Closed tabs also stop
+          any log streams or terminal sessions in the bottom dock.
+        </div>
+        <div className="warning-box">This cannot be undone.</div>
+      </Modal>
+    )}
+    </>
   );
 }

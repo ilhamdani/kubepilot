@@ -1,5 +1,5 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
+import { existsSync, mkdirSync, readFileSync, writeFileSync, unlinkSync } from 'node:fs';
+import { dirname, join, resolve, sep } from 'node:path';
 import { app } from 'electron';
 import type { ClusterInfo, ClusterState, StoredSettings } from '@shared/types';
 import { defaultKubeconfigPaths, listClusters } from './config';
@@ -25,10 +25,16 @@ export class ClusterRegistry {
   private states = new Map<string, ClusterState>();
   private config: PersistedConfig;
   private configPath: string;
+  private importDir: string;
   private listeners = new Set<(state: ClusterState) => void>();
 
   constructor() {
-    this.configPath = join(app.getPath('userData'), 'kubepilot-settings.json');
+    const userData = app.getPath('userData');
+    this.configPath = join(userData, 'kubepilot-settings.json');
+    // Kubeconfigs pasted into the app live here, separate from the user's own
+    // files, so "Remove" can delete the credentials it created without ever
+    // touching ~/.kube/config or a file the user picked in a dialog.
+    this.importDir = join(userData, 'kubeconfigs');
     this.config = this.loadConfig();
   }
 
@@ -72,6 +78,21 @@ export class ClusterRegistry {
     return this.config.kubeconfigPaths;
   }
 
+  /** Directory that holds kubeconfigs pasted into the app. */
+  get kubeconfigImportDir(): string {
+    return this.importDir;
+  }
+
+  /** Context names already visible, used to avoid `live:<name>` id collisions. */
+  existingContextNames(): string[] {
+    return this.listClusters().map((cluster) => cluster.name);
+  }
+
+  isManagedKubeconfig(path: string): boolean {
+    const root = resolve(this.importDir) + sep;
+    return resolve(path).startsWith(root);
+  }
+
   allKubeconfigPaths(): string[] {
     return defaultKubeconfigPaths(this.config.kubeconfigPaths);
   }
@@ -87,6 +108,16 @@ export class ClusterRegistry {
   removeKubeconfigPath(path: string): string[] {
     this.config.kubeconfigPaths = this.config.kubeconfigPaths.filter((p) => p !== path);
     this.save();
+    // A pasted kubeconfig can contain long-lived credentials. Once it is no
+    // longer referenced, delete the copy this app created. Files the user
+    // picked in a dialog are never touched.
+    if (this.isManagedKubeconfig(path)) {
+      try {
+        unlinkSync(resolve(path));
+      } catch {
+        /* already gone, or locked — the path is no longer used either way */
+      }
+    }
     return this.allKubeconfigPaths();
   }
 
