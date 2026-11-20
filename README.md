@@ -71,7 +71,7 @@ The macOS disk images are produced by the repository's GitHub Actions workflow
 ### From source
 
 ```bash
-git clone <this-repo>
+git clone https://github.com/ilhamdani/kubepilot.git
 cd kubepilot
 npm install
 npm run dev

@@ -7,13 +7,13 @@
   "author": "KubePilot contributors",
   "license": "GPL-3.0",
   "private": true,
-  "homepage": "https://github.com/kubepilot/kubepilot",
+  "homepage": "https://github.com/ilhamdani/kubepilot",
   "repository": {
     "type": "git",
-    "url": "https://github.com/kubepilot/kubepilot.git"
+    "url": "https://github.com/ilhamdani/kubepilot.git"
   },
   "bugs": {
-    "url": "https://github.com/kubepilot/kubepilot/issues"
+    "url": "https://github.com/ilhamdani/kubepilot/issues"
   },
   "keywords": [
     "kubernetes",
