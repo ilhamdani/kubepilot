@@ -1,0 +1,21 @@
+# Installer binaries exceed GitHub's 100 MB blob limit — route them through Git LFS.
+# Requires: git lfs install   (once per machine, before the first clone/push)
+*.exe filter=lfs diff=lfs merge=lfs -text
+*.blockmap filter=lfs diff=lfs merge=lfs -text
+
+# Normalise line endings for text sources
+* text=auto
+*.ts text
+*.tsx text
+*.mjs text
+*.js text
+*.json text
+*.md text
+*.yml text
+*.yaml text
+*.html text
+*.css text
+*.svg text
+*.png binary
+*.icns binary
+*.ico binary

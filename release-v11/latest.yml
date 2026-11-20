@@ -1,0 +1,8 @@
+version: 0.1.0
+files:
+  - url: KubePilot-0.1.0-x64-setup.exe
+    sha512: w3Mo4QUj188WpDYcmPuk41dZcQr6jZC1m1U588y7KBoI165oh+vUGbwNBF7nK0Pai/DXsDUP+4ams0pYI3xLyQ==
+    size: 122866911
+path: KubePilot-0.1.0-x64-setup.exe
+sha512: w3Mo4QUj188WpDYcmPuk41dZcQr6jZC1m1U588y7KBoI165oh+vUGbwNBF7nK0Pai/DXsDUP+4ams0pYI3xLyQ==
+releaseDate: '2026-11-02T13:40:24.706Z'
